@@ -75,16 +75,15 @@ You can install Codex using the [official Codex CLI instructions](https://learn.
 
 ## Installation
 
-From the CDSL directory, **run `source ./install.sh` at your current Bash prompt.** This installs missing dependencies, configures CDSL, and activates it in the current terminal in one step.
+With Git installed, **run this single line at your current Bash prompt** from a location without an existing `cdsl` directory. It clones the repository, installs missing dependencies, configures CDSL, and activates it in the current terminal.
 
 ```bash
-git clone https://github.com/takamasa-aiso/cdsl.git
-cd cdsl
-
-source ./install.sh
+git clone https://github.com/takamasa-aiso/cdsl.git && source ./cdsl/install.sh
 ```
 
-If you already cloned the repository, only `source ./install.sh` is needed. If Git is unavailable, you can also use an extracted GitHub "Code → Download ZIP" archive. Keep the complete CDSL directory, not just `install.sh`.
+`&&` starts installation only after cloning succeeds, and `source` applies the settings to the current Bash shell. Your working directory stays unchanged. `git clone` does not send a script to standard output, so this command uses `&&` instead of a pipe (`|`).
+
+If you already cloned the repository, run `source ./install.sh` inside the CDSL directory. If Git is unavailable, run the same command inside an extracted GitHub "Code → Download ZIP" archive. Keep the complete CDSL directory, not just `install.sh`.
 
 After it completes, start Codex in the same terminal:
 
@@ -104,7 +103,7 @@ Only package installation uses sudo, which may ask for your password. Do not run
 
 `bash install.sh` and `./install.sh` cannot change the parent shell's PATH, so they stop before making changes and show the `source` command. Exit Codex and use your regular Bash prompt. If a `codex` alias or function overrides PATH, the installer asks you to resolve that conflict before retrying.
 
-To preview changes or select an existing Python interpreter or official Codex explicitly:
+To preview changes or select an existing Python interpreter or official Codex explicitly, run these commands inside the CDSL directory:
 
 ```bash
 source ./install.sh --dry-run
@@ -115,7 +114,7 @@ source ./install.sh --python /usr/bin/python3.12 --real-codex "$HOME/.local/bin/
 
 ### Configuring CDSL without installing packages
 
-If you manage dependencies yourself, the Python command remains available. It stops before writing CDSL settings when prerequisites are missing:
+If you manage dependencies yourself, the Python command remains available inside the CDSL directory. It stops before writing CDSL settings when prerequisites are missing:
 
 ```bash
 python3 scripts/cdsl.py install --codex
@@ -249,8 +248,7 @@ If Codex moves to a different location, for example after switching Node version
 To update CDSL, run these commands in its repository:
 
 ```bash
-git pull --ff-only
-source ./install.sh
+git pull --ff-only && source ./install.sh
 ```
 
 The installer preserves existing shell configuration and changes only its managed blocks. It saves backups with file permissions `0600`. If a managed block has been edited externally or a shell configuration file is a symbolic link, installation stops with an error instead of overwriting it.

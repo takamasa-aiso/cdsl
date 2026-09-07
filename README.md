@@ -75,16 +75,15 @@ Codexは[公式のCodex CLI導入手順](https://learn.chatgpt.com/docs/codex/cl
 
 ## インストール
 
-CDSLのフォルダーで、**現在のBashプロンプトから`source ./install.sh`を実行します。** 不足パッケージの導入、CDSLの設定、現在のターミナルへの反映を一度に行います。
+Gitが導入済みで、`cdsl`フォルダーがまだない場所から、**現在のBashプロンプトで次の1行を実行します。** リポジトリの取得、不足パッケージの導入、CDSLの設定、現在のターミナルへの反映をまとめて行います。
 
 ```bash
-git clone https://github.com/takamasa-aiso/cdsl.git
-cd cdsl
-
-source ./install.sh
+git clone https://github.com/takamasa-aiso/cdsl.git && source ./cdsl/install.sh
 ```
 
-すでにclone済みなら`source ./install.sh`だけで構いません。Gitがない場合は、GitHubの「Code → Download ZIP」を展開したフォルダーでも利用できます。`install.sh`単体ではなく、CDSLのフォルダー全体を保持してください。
+`&&`によりclone成功時だけインストールを開始し、`source`で現在のBashへ設定を反映します。作業ディレクトリは移動しません。`git clone`はスクリプトを標準出力へ渡すコマンドではないため、ここではパイプ（`|`）を使いません。
+
+すでにclone済みなら、CDSLフォルダー内で`source ./install.sh`だけで構いません。Gitがない場合は、GitHubの「Code → Download ZIP」を展開したフォルダー内で同じコマンドを実行できます。`install.sh`単体ではなく、CDSLのフォルダー全体を保持してください。
 
 完了後は、同じターミナルでそのまま起動します。
 
@@ -104,7 +103,7 @@ codex resume
 
 `bash install.sh`や`./install.sh`では親シェルのPATHを変更できないため、変更前に停止して`source`での実行を案内します。Codexを終了して通常のBashプロンプトで実行してください。`codex`というaliasや関数がある場合も、それを整理してから再実行するよう案内します。
 
-変更予定だけを確認する場合や、既存のPython・公式Codexを明示する場合は、次のオプションを使えます。
+変更予定だけを確認する場合や、既存のPython・公式Codexを明示する場合は、CDSLフォルダー内で次のオプションを使えます。
 
 ```bash
 source ./install.sh --dry-run
@@ -115,7 +114,7 @@ source ./install.sh --python /usr/bin/python3.12 --real-codex "$HOME/.local/bin/
 
 ### パッケージを導入せずCDSLだけ設定する場合
 
-依存関係を自分で準備する場合は、従来のPythonコマンドも使えます。このコマンドは不足項目があれば、CDSLの設定へ書き込まず停止します。
+依存関係を自分で準備する場合は、CDSLフォルダー内で従来のPythonコマンドも使えます。このコマンドは不足項目があれば、CDSLの設定へ書き込まず停止します。
 
 ```bash
 python3 scripts/cdsl.py install --codex
@@ -249,8 +248,7 @@ Nodeのバージョン管理などでCodexのインストール先自体を変�
 CDSLを更新する場合は、このリポジトリ内で次を実行します。
 
 ```bash
-git pull --ff-only
-source ./install.sh
+git pull --ff-only && source ./install.sh
 ```
 
 シェル設定の既存部分は保持し、CDSLの管理ブロックだけを追加・更新します。変更前のファイルは0600のバックアップへ保存します。管理ブロックが外部で編集されている場合や、編集対象のシェル設定がシンボリックリンクの場合は、上書きせずエラーにします。
