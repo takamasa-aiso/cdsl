@@ -27,15 +27,20 @@
 - Linux / WSL、BashとGit
 - Python 3.11以上
 - tmux 3.2以上（3.4で検証）
-- 導入・ログイン済みのCodex CLI（0.153.4で検証）
+- Codex CLI（0.153.4で検証。未導入の場合は`install.sh`で導入）
 
 Codexのstandalone版とnpm版に対応します。macOS、Windowsネイティブ版、リモートCodex接続は対象外です。
+
+`install.sh`はapt/dnfを使って不足パッケージを導入します。通常は下の「インストール」へ進んでください。パッケージを自分で管理する場合の手順は以下です。
+
+<details>
+<summary>パッケージを手動で導入する場合</summary>
 
 Ubuntu 24.04またはDebian 12で必要なパッケージが不足している場合は、次を実行します。
 
 ```bash
 sudo apt update
-sudo apt install python3 tmux git bash
+sudo apt install python3 tmux git bash bubblewrap
 python3 --version
 tmux -V
 ```
@@ -47,7 +52,7 @@ RHEL系（AlmaLinux、Rocky Linuxなど）では、リリースと利用中の�
 [RHEL 9](https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/9/html/installing_and_using_dynamic_programming_languages/assembly_installing-and-using-python_installing-and-using-dynamic-programming-languages)の標準`python3`は3.9のため、そのままではCDSLの要件を満たしません。RHEL 9.4以降では、追加のPython 3.12を使います。
 
 ```bash
-sudo dnf install git bash tmux python3.12
+sudo dnf install git bash tmux python3.12 bubblewrap
 python3.12 --version
 tmux -V
 ```
@@ -57,42 +62,63 @@ tmux -V
 [RHEL 10](https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/10/html/installing_and_using_dynamic_programming_languages/installing-and-using-python)は標準のPython 3.12を使えます。
 
 ```bash
-sudo dnf install git bash tmux python3
+sudo dnf install git bash tmux python3 bubblewrap
 python3 --version
 tmux -V
 ```
 
 対象リリースとPythonのサポート期間は、[RHEL Application Streamsのライフサイクル](https://access.redhat.com/support/policy/updates/rhel-app-streams-life-cycle)で確認できます。
 
-Codexは[公式のCodex CLI導入手順](https://learn.chatgpt.com/docs/codex/cli)でインストールします。CDSLを使う前にログインを済ませてください。未ログインの場合は`codex login`を実行し、[公式の認証手順](https://learn.chatgpt.com/docs/auth)に従います。
+Codexは[公式のCodex CLI導入手順](https://learn.chatgpt.com/docs/codex/cli)でインストールできます。Linuxのサンドボックスに必要な`bubblewrap`と、OS側で追加設定が必要な場合の手順は[公式のサンドボックス説明](https://learn.chatgpt.com/docs/sandboxing)を参照してください。
+
+</details>
 
 ## インストール
 
-インストーラーは、変更前に必要な依存関係をまとめて確認します。不足があれば一覧を表示し、ファイルへ書き込まず停止します。パッケージは自動インストールしません。上記のパッケージ導入コマンドを本人が実行した後、CDSLのインストールをやり直してください。
+CDSLのフォルダーで、**現在のBashプロンプトから`source ./install.sh`を実行します。** 不足パッケージの導入、CDSLの設定、現在のターミナルへの反映を一度に行います。
 
 ```bash
 git clone https://github.com/takamasa-aiso/cdsl.git
 cd cdsl
 
-# Preview the installation changes
-python3 scripts/cdsl.py install --codex --dry-run
-
-# Enable automatic startup
-python3 scripts/cdsl.py install --codex
+source ./install.sh
 ```
 
-このインストールで起動連携と描画コマンドの設定が完了します。設定ファイルがなければ自動作成されるため、通常の利用では「描画コマンドの設定」の手順を個別に行う必要はありません。既存の描画設定は保持します。
+すでにclone済みなら`source ./install.sh`だけで構いません。Gitがない場合は、GitHubの「Code → Download ZIP」を展開したフォルダーでも利用できます。`install.sh`単体ではなく、CDSLのフォルダー全体を保持してください。
 
-新しいBashターミナルを開き、通常どおり起動します。
+完了後は、同じターミナルでそのまま起動します。
 
 ```bash
 codex
 codex resume
 ```
 
-現在のシェルへ反映する場合は、シェルのプロンプトで次を実行します。
+インストーラーは次を行います。
+
+- Python 3.11以上、Git、tmux 3.2以上、Codex用の`bubblewrap`を確認し、不足分をapt/dnfで導入します。RHEL 9系では、必要に応じてPython 3.12を選びます。
+- 公式Codexがなければ、必要なcurl・証明書・展開用コマンドなどを導入し、[公式インストーラー](https://learn.chatgpt.com/docs/codex/cli)で動作確認済みのCodex CLI 0.153.4を導入します。既存Codexの選択は引き継ぎます。
+- 依存関係と既存設定を再確認してから、起動連携と描画設定を作成します。既存の描画設定は保持します。
+- 現在のBashへPATHを反映し、コマンドのキャッシュを消します。個別の`source`や`hash -r`は不要です。
+
+パッケージ導入だけにsudoを使うため、必要に応じてパスワードを入力してください。スクリプト全体をsudoで実行する必要はありません。Codexへの初回ログインが必要なら、起動時の案内に従ってください。
+
+`bash install.sh`や`./install.sh`では親シェルのPATHを変更できないため、変更前に停止して`source`での実行を案内します。Codexを終了して通常のBashプロンプトで実行してください。`codex`というaliasや関数がある場合も、それを整理してから再実行するよう案内します。
+
+変更予定だけを確認する場合や、既存のPython・公式Codexを明示する場合は、次のオプションを使えます。
 
 ```bash
+source ./install.sh --dry-run
+source ./install.sh --python /usr/bin/python3.12 --real-codex "$HOME/.local/bin/codex"
+```
+
+`--dry-run`はパッケージ・Codex・設定・現在のシェルを変更しません。導入に失敗した場合も、失敗した状態で現在のシェルを切り替えることはありません。すでに導入済みのOSパッケージや公式Codexは残るため、原因を解消して同じコマンドを再実行してください。OSのセキュリティ設定や組織の制約は自動変更しません。
+
+### パッケージを導入せずCDSLだけ設定する場合
+
+依存関係を自分で準備する場合は、従来のPythonコマンドも使えます。このコマンドは不足項目があれば、CDSLの設定へ書き込まず停止します。
+
+```bash
+python3 scripts/cdsl.py install --codex
 source ~/.config/cdsl/shell.sh
 ```
 
@@ -224,7 +250,7 @@ CDSLを更新する場合は、このリポジトリ内で次を実行します�
 
 ```bash
 git pull --ff-only
-python3 scripts/cdsl.py install --codex
+source ./install.sh
 ```
 
 シェル設定の既存部分は保持し、CDSLの管理ブロックだけを追加・更新します。変更前のファイルは0600のバックアップへ保存します。管理ブロックが外部で編集されている場合や、編集対象のシェル設定がシンボリックリンクの場合は、上書きせずエラーにします。
@@ -350,6 +376,7 @@ type -aP codex
 | 場所 | 用途 |
 |---|---|
 | `cdsl/` | 起動連携、セッション取得、描画、画像貼り付けの本体 |
+| `install.sh` | 不足パッケージ・Codexの導入、CDSL設定、現在のBashへの反映 |
 | `scripts/cdsl.py` | 導入・診断・アンインストールと起動処理の入口 |
 | `scripts/statusline.py` | JSONを表示用の色付き文字列へ変換 |
 | `scripts/paste-image.py` | WSLクリップボード補助の入口 |
