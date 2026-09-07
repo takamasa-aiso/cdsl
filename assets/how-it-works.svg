@@ -1,0 +1,120 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="990" viewBox="0 0 1120 990" role="img" aria-labelledby="title description">
+  <title id="title">How CDSL works</title>
+  <desc id="description">An interactive codex command goes through the private CDSL PATH shim to a launcher. The launcher creates a dedicated tmux session with an official Codex process and a separate CDSL watcher. The watcher reads local session JSONL, Git state, and saved keymap settings, then calls statusLine.command using JSON on standard input and receives ANSI on standard output. Official Codex appears in the upper terminal pane, and CDSL draws five status lines in the lower pane. Solid arrows show process launch; dashed arrows show data and display output.</desc>
+  <defs>
+    <marker id="launch-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 Z" fill="#2563eb"/>
+    </marker>
+    <marker id="blue-data-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 Z" fill="#6489bb"/>
+    </marker>
+    <marker id="orange-data-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 Z" fill="#c76b25"/>
+    </marker>
+    <marker id="gray-data-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 Z" fill="#748296"/>
+    </marker>
+    <clipPath id="terminal-clip">
+      <rect x="44" y="738" width="1032" height="168" rx="14"/>
+    </clipPath>
+  </defs>
+
+  <rect width="1120" height="990" fill="#ffffff"/>
+
+  <g font-family="sans-serif" fill="#1f2937">
+    <text x="44" y="46" font-size="28" font-weight="700">How CDSL works</text>
+    <text x="44" y="76" font-size="16" fill="#566579">Official Codex and a separate CDSL status process share one terminal.</text>
+
+    <circle cx="57" cy="120" r="14" fill="#2563eb"/>
+    <text x="57" y="126" text-anchor="middle" font-size="16" font-weight="700" fill="#ffffff">1</text>
+    <text x="82" y="126" font-size="20" font-weight="700">Startup</text>
+
+    <rect x="44" y="154" width="190" height="72" rx="12" fill="#eff6ff" stroke="#a9c7eb" stroke-width="1.5"/>
+    <text x="139" y="186" text-anchor="middle" font-family="monospace" font-size="22" font-weight="700" fill="#1d4f91">codex</text>
+    <text x="139" y="210" text-anchor="middle" font-size="14" fill="#566579">Interactive shell</text>
+
+    <rect x="280" y="154" width="290" height="72" rx="12" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5"/>
+    <text x="425" y="185" text-anchor="middle" font-size="20" font-weight="700">Private PATH shim</text>
+    <text x="425" y="209" text-anchor="middle" font-family="monospace" font-size="13" fill="#566579">~/.local/share/cdsl/bin/codex</text>
+
+    <rect x="618" y="154" width="458" height="72" rx="12" fill="#eff6ff" stroke="#a9c7eb" stroke-width="1.5"/>
+    <text x="847" y="185" text-anchor="middle" font-size="20" font-weight="700" fill="#1d4f91">CDSL launcher</text>
+    <text x="847" y="209" text-anchor="middle" font-size="15" fill="#566579">Creates a dedicated tmux session</text>
+
+    <path d="M 236 190 H 275" fill="none" stroke="#2563eb" stroke-width="2.5" marker-end="url(#launch-arrow)"/>
+    <path d="M 572 190 H 613" fill="none" stroke="#2563eb" stroke-width="2.5" marker-end="url(#launch-arrow)"/>
+
+    <circle cx="57" cy="282" r="14" fill="#2563eb"/>
+    <text x="57" y="288" text-anchor="middle" font-size="16" font-weight="700" fill="#ffffff">2</text>
+    <text x="82" y="288" font-size="20" font-weight="700">Processes &amp; local data</text>
+
+    <path d="M 847 228 V 320" fill="none" stroke="#2563eb" stroke-width="2.5"/>
+    <path d="M 847 320 H 188 V 343" fill="none" stroke="#2563eb" stroke-width="2.5" marker-end="url(#launch-arrow)"/>
+    <path d="M 847 320 H 911 V 343" fill="none" stroke="#2563eb" stroke-width="2.5" marker-end="url(#launch-arrow)"/>
+    <circle cx="847" cy="320" r="4" fill="#2563eb"/>
+
+    <rect x="44" y="348" width="288" height="110" rx="14" fill="#eff6ff" stroke="#8fb5e3" stroke-width="1.7"/>
+    <text x="64" y="374" font-size="12" font-weight="700" letter-spacing="1" fill="#476d9d">MAIN PROCESS</text>
+    <text x="64" y="404" font-size="22" font-weight="700" fill="#1d4f91">Official Codex</text>
+    <text x="64" y="433" font-size="15" fill="#566579">Chat, tools &amp; session events</text>
+
+    <rect x="390" y="360" width="294" height="156" rx="12" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5"/>
+    <text x="410" y="386" font-size="16" font-weight="700" fill="#475569">Local data</text>
+    <circle cx="416" cy="405" r="3" fill="#6489bb"/>
+    <text x="430" y="411" font-size="16">Session JSONL</text>
+    <circle cx="416" cy="438" r="3" fill="#748296"/>
+    <text x="430" y="444" font-size="16">Git state</text>
+    <circle cx="416" cy="471" r="3" fill="#748296"/>
+    <text x="430" y="477" font-size="16">Saved keymap settings</text>
+    <text x="410" y="502" font-size="13" fill="#66758a">Read locally by CDSL</text>
+
+    <path d="M 334 405 H 385" fill="none" stroke="#6489bb" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#blue-data-arrow)"/>
+    <text x="358" y="391" text-anchor="middle" font-size="13" fill="#566579">writes</text>
+    <path d="M 686 426 H 741" fill="none" stroke="#748296" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#gray-data-arrow)"/>
+    <text x="714" y="412" text-anchor="middle" font-size="13" fill="#566579">reads</text>
+
+    <rect x="746" y="348" width="330" height="110" rx="14" fill="#fff7ed" stroke="#e7b68e" stroke-width="1.7"/>
+    <text x="766" y="374" font-size="12" font-weight="700" letter-spacing="1" fill="#9a5727">STATUS PROCESS</text>
+    <text x="766" y="404" font-size="22" font-weight="700" fill="#9d4e13">CDSL watcher</text>
+    <text x="766" y="433" font-size="15" fill="#566579">Builds the status snapshot</text>
+
+    <path d="M 800 460 V 549" fill="none" stroke="#c76b25" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#orange-data-arrow)"/>
+    <text x="852" y="495" text-anchor="middle" font-size="15" font-weight="700" fill="#9a5727">JSON</text>
+    <text x="852" y="518" text-anchor="middle" font-size="14" fill="#9a5727">stdin</text>
+    <path d="M 1018 552 V 463" fill="none" stroke="#c76b25" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#orange-data-arrow)"/>
+    <text x="964" y="495" text-anchor="middle" font-size="15" font-weight="700" fill="#9a5727">ANSI</text>
+    <text x="964" y="518" text-anchor="middle" font-size="14" fill="#9a5727">stdout</text>
+
+    <rect x="746" y="554" width="330" height="90" rx="12" fill="#fffaf5" stroke="#e7b68e" stroke-width="1.5"/>
+    <text x="911" y="590" text-anchor="middle" font-family="monospace" font-size="19" font-weight="700" fill="#9d4e13">statusLine.command</text>
+    <text x="911" y="618" text-anchor="middle" font-size="16" fill="#566579">Renderer subprocess</text>
+    <text x="746" y="670" font-size="14" fill="#66758a">Called by the CDSL watcher</text>
+
+    <circle cx="57" cy="704" r="14" fill="#2563eb"/>
+    <text x="57" y="710" text-anchor="middle" font-size="16" font-weight="700" fill="#ffffff">3</text>
+    <text x="82" y="710" font-size="20" font-weight="700">One terminal window</text>
+
+    <g clip-path="url(#terminal-clip)">
+      <rect x="44" y="738" width="1032" height="80" fill="#f1f6fd"/>
+      <rect x="44" y="818" width="1032" height="88" fill="#fff7ed"/>
+      <rect x="44" y="738" width="5" height="80" fill="#6489bb"/>
+      <rect x="44" y="818" width="5" height="88" fill="#c76b25"/>
+    </g>
+    <rect x="44" y="738" width="1032" height="168" rx="14" fill="none" stroke="#cbd5e1" stroke-width="1.5"/>
+    <line x1="44" y1="818" x2="1076" y2="818" stroke="#cbd5e1" stroke-width="1.5"/>
+    <text x="70" y="773" font-size="19" font-weight="700" fill="#1d4f91">Upper pane · Official Codex</text>
+    <text x="70" y="798" font-size="15" fill="#566579">Interactive CLI</text>
+    <text x="70" y="853" font-size="19" font-weight="700" fill="#9d4e13">Lower pane · CDSL</text>
+    <text x="70" y="881" font-size="15" fill="#566579">Model &amp; Git · Context · Session · Weekly · Permissions</text>
+    <rect x="974" y="835" width="78" height="28" rx="14" fill="#c76b25"/>
+    <text x="1013" y="854" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">5 lines</text>
+
+    <path d="M 44 429 H 20 V 778 H 39" fill="none" stroke="#6489bb" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#blue-data-arrow)"/>
+    <path d="M 1076 429 H 1100 V 862 H 1081" fill="none" stroke="#c76b25" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#orange-data-arrow)"/>
+
+    <path d="M 44 950 H 86" fill="none" stroke="#2563eb" stroke-width="2.5" marker-end="url(#launch-arrow)"/>
+    <text x="103" y="955" font-size="14" fill="#566579">Process launch</text>
+    <path d="M 280 950 H 322" fill="none" stroke="#748296" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#gray-data-arrow)"/>
+    <text x="339" y="955" font-size="14" fill="#566579">Data, JSON &amp; display output</text>
+  </g>
+</svg>
