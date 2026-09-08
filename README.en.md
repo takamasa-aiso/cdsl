@@ -175,11 +175,13 @@ If the five-hour limit returns and Codex records its usage percentage and a vali
 
 On narrow terminals, labels and graphs are shortened. `[--]` means a limit has not been received or its recorded period has expired. `Permissions: unknown` means permission information is not yet available. If CDSL cannot identify the active conversation unambiguously, it displays a waiting message.
 
+Legacy terminals, such as `TERM=xterm` with no `COLORTERM`, use compatibility output with fixed-width ASCII graphs and basic colors (yellow for Permissions). Select it explicitly with `CDSL_RENDER_MODE=ascii codex`, or select the standard display with `CDSL_RENDER_MODE=unicode codex`.
+
 Clock times and time ranges use Japan Standard Time (JST, UTC+09:00).
 
 ## Permissions and shortcuts
 
-The row reads `Permissions: scope | approval policy`. The `Permissions:` label uses `#FFC107`, the warning color in Claude Code's default dark theme. The first configured shortcut appears beside the values, separated by one space:
+The row reads `Permissions: scope | approval policy`. In the standard display, the `Permissions:` label uses `#FFC107`, the warning color in Claude Code's default dark theme. The first configured shortcut appears beside the values, separated by one space:
 
 | Shortcut state | Hint |
 |---|---|

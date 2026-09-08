@@ -6,6 +6,7 @@ import math
 import os
 import re
 import unicodedata
+from contextvars import ContextVar
 from datetime import datetime, timedelta, timezone
 from pathlib import PurePath
 from . import ccsl_render
@@ -16,6 +17,25 @@ _ESCAPES = re.compile(r"\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|\x1b\[[0-?]*[ -/]*[@-~
 _CONTROLS = re.compile(r"[\x00-\x1f\x7f-\x9f]")
 _PERMISSION_ORANGE = "\x1b[38;2;255;193;7m"
 _HINT_GRAY = "\x1b[38;5;245m"
+_COMPATIBILITY = ContextVar("cdsl_render_compatibility", default=False)
+_ASCII_GRAPH = str.maketrans({"▁": "_", "▂": ".", "▃": ":", "▄": "-",
+                             "▅": "=", "▆": "+", "▇": "*", "█": "#", "▒": ".", "─": "_"})
+
+
+def terminal_compatibility(environ: dict | None = None) -> bool:
+    """Use conservative output for legacy terminals, with an explicit override."""
+    env = os.environ if environ is None else environ
+    mode = env.get("CDSL_RENDER_MODE", "auto").strip().lower()
+    if mode not in {"auto", "ascii", "unicode"}:
+        raise ValueError("CDSL_RENDER_MODE must be auto, ascii, or unicode.")
+    if mode != "auto":
+        return mode == "ascii"
+    term = env.get("TERM", "").lower()
+    color_term = env.get("COLORTERM", "").lower()
+    if color_term in {"truecolor", "24bit"} or "256color" in term or "direct" in term:
+        return False
+    return (not term or term.startswith("vt")
+            or term in {"ansi", "dumb", "linux", "xterm", "xterm-color", "screen", "screen-bce", "tmux", "rxvt"})
 
 
 def _text(value: object, fallback: str = "") -> str:
@@ -95,14 +115,19 @@ def _clusters(text: str) -> list[tuple[str, int]]:
     """Group combining characters and emoji into terminal cells."""
     result = []
     joined = False
+    compatibility = _COMPATIBILITY.get()
     for char in text:
         if result and (unicodedata.combining(char) or char in ("\ufe0e", "\ufe0f", "\u200d") or joined):
             previous, size = result[-1]
-            if char == "\ufe0f" or joined and unicodedata.east_asian_width(char) in ("W", "F"):
+            if joined and compatibility:
+                # Some legacy fonts display ZWJ components separately.
+                size += 2 if unicodedata.east_asian_width(char) in ("W", "F", "A") else 1
+            elif char == "\ufe0f" or joined and unicodedata.east_asian_width(char) in ("W", "F"):
                 size = max(size, 2)
             result[-1] = (previous + char, size)
         else:
-            result.append((char, 2 if unicodedata.east_asian_width(char) in ("W", "F") else 1))
+            wide = unicodedata.east_asian_width(char) in (("W", "F", "A") if compatibility else ("W", "F"))
+            result.append((char, 2 if wide else 1))
         joined = char == "\u200d"
     return result
 
@@ -124,7 +149,7 @@ def _clip(text: str, width: int) -> str:
             break
         result.append(cluster)
         used += size
-    return "".join(result) + "…"
+    return "".join(result) + ("." if _COMPATIBILITY.get() else "…")
 
 
 def _paint(text: str, color: str, colors) -> str:
@@ -141,14 +166,14 @@ def _fit_ansi(text: str, width: int) -> str:
     for match in _ESCAPES.finditer(text):
         for cluster, size in _clusters(text[position:match.start()]):
             if used + size > width - 1:
-                return "".join(parts) + "…"
+                return "".join(parts) + ("." if _COMPATIBILITY.get() else "…")
             parts.append(cluster)
             used += size
         parts.append(match.group())
         position = match.end()
     for cluster, size in _clusters(text[position:]):
         if used + size > width - 1:
-            return "".join(parts) + "…"
+            return "".join(parts) + ("." if _COMPATIBILITY.get() else "…")
         parts.append(cluster)
         used += size
     return "".join(parts)
@@ -164,6 +189,7 @@ def _header(context: dict, width: int) -> str:
     branch, directory = context["git_branch"], context["current_dir"]
 
     def build(model_size, branch_size, directory_size, icons=True, modified=True, separator=" | "):
+        icons = icons and not _COMPATIBILITY.get()
         model_text = _clip(model, model_size)
         if show_badge and model_text.endswith("(1M)"):
             model_text = model_text[:-4] + colors.BRIGHT_MAGENTA + "(1M)" + colors.BRIGHT_YELLOW
@@ -264,9 +290,12 @@ def _metric_rows(snapshot: dict, context: dict, width: int, now: datetime) -> li
             graph = ccsl_render.create_sparkline(timeline, width=graph_width, current_pos=current)
         else:
             graph = ""
+        if _COMPATIBILITY.get():
+            # Block/shade glyphs can have different cell widths on CJK terminals.
+            graph = graph.translate(_ASCII_GRAPH)
         missing = graph_width - display_width(graph)
         if missing > 0:
-            graph += _paint("─" * missing, colors.DARK_GRAY, colors)
+            graph += _paint(("_" if _COMPATIBILITY.get() else "─") * missing, colors.DARK_GRAY, colors)
         graphs.append(graph)
     token_format = ccsl_render.format_token_count if width >= 60 else ccsl_render.format_token_count_short
     compact_tokens = token_format(int(tokens)) if tokens is not None else "--"
@@ -276,7 +305,8 @@ def _metric_rows(snapshot: dict, context: dict, width: int, now: datetime) -> li
         context_detail = compact_tokens
     context_items = [(context_detail, colors.BRIGHT_WHITE)]
     if context["cache_ratio"] >= 50:
-        context_items.append((f"♻️ {int(context['cache_ratio'])}% cached", colors.BRIGHT_GREEN))
+        icon = "" if _COMPATIBILITY.get() else "♻️ "
+        context_items.append((f"{icon}{int(context['cache_ratio'])}% cached", colors.BRIGHT_GREEN))
     session_tokens = _number(snapshot.get("session_tokens"))
     session_detail = ccsl_render.format_token_count_short(int(session_tokens)) if session_tokens is not None else ("N/A" if available[1] is False else "--")
     if width >= 60 and session_tokens is not None:
@@ -350,21 +380,33 @@ def _permission_line(snapshot: dict, width: int) -> str:
             + _paint(_clip(text, width - len(prefix)), colors.BRIGHT_WHITE, colors))
 
 
-def render(snapshot: dict, width: int = 80, color: bool = True) -> str:
+def render(snapshot: dict, width: int = 80, color: bool = True, compatibility: bool = False) -> str:
     """Render five CCSL-style rows without a trailing newline.
 
     ``cache_ratio`` uses 0..1; utilization uses 0..100. Timestamps accept
     ISO 8601 or epoch seconds and display in JST. ``now`` fixes render time.
     Unavailable limits show ``N/A``; pending values show ``--``.
     Permission labels describe settings without changing them.
+    Compatibility output uses ASCII graphs and basic ANSI colors.
     """
+    if not isinstance(compatibility, bool):
+        raise ValueError("The compatibility setting must be true or false.")
     if not isinstance(snapshot, dict):
         snapshot = {}
     width = max(10, int(_number(width) or 80)) - 2
     now = _date(snapshot.get("now")) or datetime.now(timezone.utc)
     context = _context(snapshot, now)
-    lines = [_header(context, width), *_metric_rows(snapshot, context, width, now), _permission_line(snapshot, width)]
-    output = "\n".join(f"\033[0m\033[1;97m  {_fit_ansi(line, width)}\033[0m" for line in lines)
+    token = _COMPATIBILITY.set(compatibility)
+    try:
+        lines = [_header(context, width), *_metric_rows(snapshot, context, width, now), _permission_line(snapshot, width)]
+        output = "\n".join(f"\033[0m\033[1;97m  {_fit_ansi(line, width)}\033[0m" for line in lines)
+    finally:
+        _COMPATIBILITY.reset(token)
+    if compatibility:
+        output = (output.replace(_PERMISSION_ORANGE, "\x1b[1;33m")
+                  .replace(_HINT_GRAY, "\x1b[37m")
+                  .replace(ccsl_render.Colors.DARK_GRAY, "\x1b[2;37m")
+                  .replace(ccsl_render.Colors.FUTURE_GRAY, "\x1b[2;37m"))
     if not color or os.environ.get("NO_COLOR") or os.environ.get("STATUSLINE_NO_COLOR"):
         return _ESCAPES.sub("", output)
     return output

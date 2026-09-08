@@ -175,11 +175,13 @@ Session / Weeklyの使用率はアカウントの値です。グラフは**対�
 
 狭い端末ではラベルやグラフを短縮します。利用枠が未取得・期限切れなら `[--]`、権限情報がまだなければ `Permissions: unknown`、対象会話を一意に特定できなければ待機表示になります。
 
+`TERM=xterm`かつ`COLORTERM`未指定などの端末では、幅が一定のASCIIグラフと基本色による互換表示になります（Permissionsは黄色）。`CDSL_RENDER_MODE=ascii codex`で互換表示、`CDSL_RENDER_MODE=unicode codex`で通常表示を明示できます。
+
 時刻・時間帯は日本標準時（JST、UTC+09:00）で表示します。
 
 ## Permissionsの表示と切替
 
-`Permissions: 権限の範囲 | 承認方針` の順に表示します。`Permissions:`ラベルはClaude Codeの標準ダークテーマのwarning色（`#FFC107`）です。値の横に半角スペース1つを挟み、先頭に設定されたショートカットを表示します。
+`Permissions: 権限の範囲 | 承認方針` の順に表示します。通常表示の`Permissions:`ラベルはClaude Codeの標準ダークテーマのwarning色（`#FFC107`）です。値の横に半角スペース1つを挟み、先頭に設定されたショートカットを表示します。
 
 | ショートカットの状態 | ヒント |
 |---|---|

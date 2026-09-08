@@ -100,6 +100,12 @@ def enforce_status_height(run_dir: Path) -> None:
 
 def run(codex_args: list[str], cwd: Path, codex_home: Path) -> int:
     from .codex_entry import remote_requested
+    from .renderer import terminal_compatibility
+    try:
+        render_mode = "ascii" if terminal_compatibility() else "unicode"
+    except ValueError as error:
+        print(f"CDSL: {error}", file=sys.stderr)
+        return 1
     if remote_requested(codex_args):
         print("CDSL supports local Codex CLI sessions. --remote is not supported.", file=sys.stderr)
         return 1
@@ -127,6 +133,8 @@ def run(codex_args: list[str], cwd: Path, codex_home: Path) -> int:
         value = str(codex_home) if key == "CODEX_HOME" else os.environ.get(key)
         if value is not None:
             pane_environment.extend(["-e", f"{key}={value}"])
+    # Preserve the outer terminal decision after tmux changes TERM inside panes.
+    pane_environment.extend(["-e", f"CDSL_RENDER_MODE={render_mode}"])
     created = False
     try:
         result = _tmux(socket, "new-session", "-d", "-s", session, *pane_environment,

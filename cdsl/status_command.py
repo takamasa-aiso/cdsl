@@ -160,6 +160,7 @@ def _run_bounded(command: list[str], payload: bytes, timeout: float) -> tuple[in
 
 def render_via_command(
     snapshot: dict, width: int, height: int, color: bool, config_path: Path | None = None,
+    compatibility: bool = False,
 ) -> str:
     """Send JSON through stdin and return bounded UTF-8 ANSI output without trailing newlines."""
     if not isinstance(snapshot, dict):
@@ -168,8 +169,12 @@ def render_via_command(
         raise ValueError("Status line terminal width and height must be positive integers.")
     if not isinstance(color, bool):
         raise ValueError("The status line color setting must be true or false.")
+    if not isinstance(compatibility, bool):
+        raise ValueError("The status line compatibility setting must be true or false.")
     settings = load_status_settings(config_path)
-    protocol = {"version": 1, "session": snapshot, "terminal": {"columns": width, "rows": height, "color": color}}
+    protocol = {"version": 1, "session": snapshot, "terminal": {
+        "columns": width, "rows": height, "color": color, "compatibility": compatibility,
+    }}
     try:
         payload = (json.dumps(protocol, ensure_ascii=False, allow_nan=False) + "\n").encode("utf-8")
     except (TypeError, ValueError, UnicodeEncodeError):
