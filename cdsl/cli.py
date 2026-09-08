@@ -26,12 +26,14 @@ def terminal_size():
 
 
 def display(snapshot):
+    from .renderer import terminal_compatibility
     from .status_command import render_via_command
     width, _height = terminal_size()
     # The five-row status pane does not represent the main terminal height.
     return render_via_command(
         snapshot, width=max(10, width - 1), height=24,
         color=not bool(os.environ.get("NO_COLOR")),
+        compatibility=terminal_compatibility(),
     )
 
 

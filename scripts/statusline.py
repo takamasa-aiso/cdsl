@@ -27,6 +27,9 @@ def render_request(request: dict) -> str:
             raise ValueError("terminal.columns and terminal.rows must be positive integers.")
     if not isinstance(terminal.get("color"), bool):
         raise ValueError("terminal.color must be true or false.")
+    compatibility = terminal.get("compatibility", False)
+    if not isinstance(compatibility, bool):
+        raise ValueError("terminal.compatibility must be true or false.")
     now = session.get("now")
     try:
         if isinstance(now, str):
@@ -37,7 +40,7 @@ def render_request(request: dict) -> str:
             raise ValueError
     except (ValueError, OverflowError, OSError):
         raise ValueError("session.now must specify the time when the snapshot was collected.") from None
-    return render(session, width=terminal["columns"], color=terminal["color"])
+    return render(session, width=terminal["columns"], color=terminal["color"], compatibility=compatibility)
 
 
 def main() -> int:
