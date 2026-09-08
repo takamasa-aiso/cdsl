@@ -27,15 +27,20 @@ Commands such as `codex exec`, `codex update`, help, and non-TTY invocations pas
 - Linux or WSL, with Bash and Git
 - Python 3.11 or later
 - tmux 3.2 or later, tested with 3.4
-- Codex CLI installed and signed in, tested with 0.153.4
+- Codex CLI, tested with 0.153.4; `install.sh` installs it if missing
 
 Both standalone and npm installations of Codex are supported. macOS, native Windows, and remote Codex connections are outside the supported scope.
+
+`install.sh` installs missing packages through apt/dnf. For normal setup, continue to Installation below. Manual package instructions are available here if you manage dependencies yourself.
+
+<details>
+<summary>Installing packages manually</summary>
 
 If the required packages are missing on Ubuntu 24.04 or Debian 12, run:
 
 ```bash
 sudo apt update
-sudo apt install python3 tmux git bash
+sudo apt install python3 tmux git bash bubblewrap
 python3 --version
 tmux -V
 ```
@@ -47,7 +52,7 @@ On RHEL-based systems (such as AlmaLinux and Rocky Linux), choose Python accordi
 The default `python3` in [RHEL 9](https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/9/html/installing_and_using_dynamic_programming_languages/assembly_installing-and-using-python_installing-and-using-dynamic-programming-languages) is 3.9, which does not meet CDSL's requirements. On RHEL 9.4 and later, use the additional Python 3.12 package:
 
 ```bash
-sudo dnf install git bash tmux python3.12
+sudo dnf install git bash tmux python3.12 bubblewrap
 python3.12 --version
 tmux -V
 ```
@@ -57,42 +62,82 @@ For this RHEL 9 setup, replace `python3` throughout the remaining instructions w
 [RHEL 10](https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/10/html/installing_and_using_dynamic_programming_languages/installing-and-using-python) provides Python 3.12 as its default:
 
 ```bash
-sudo dnf install git bash tmux python3
+sudo dnf install git bash tmux python3 bubblewrap
 python3 --version
 tmux -V
 ```
 
 Check the [RHEL Application Streams life cycle](https://access.redhat.com/support/policy/updates/rhel-app-streams-life-cycle) for supported releases and Python support periods.
 
-Install Codex using the [official Codex CLI instructions](https://learn.chatgpt.com/docs/codex/cli). Complete sign-in before using CDSL; if you are not already signed in, run `codex login` and follow the [official authentication steps](https://learn.chatgpt.com/docs/auth).
+You can install Codex using the [official Codex CLI instructions](https://learn.chatgpt.com/docs/codex/cli). See the [official sandbox documentation](https://learn.chatgpt.com/docs/sandboxing) for `bubblewrap` and any additional OS setup required for Linux sandboxing.
+
+</details>
 
 ## Installation
 
-The installer checks required dependencies together before making changes. If any are missing, it lists them and stops without writing files. CDSL does not install packages automatically: run the package commands above yourself, then retry installation.
+Run this single line in a regular Linux / WSL terminal with `curl` available. Git does not need to be installed first, and you do not need to clone the repository manually.
 
 ```bash
-git clone https://github.com/takamasa-aiso/cdsl.git
-cd cdsl
-
-# Preview the installation changes
-python3 scripts/cdsl.py install --codex --dry-run
-
-# Enable automatic startup
-python3 scripts/cdsl.py install --codex
+curl -fsSL https://raw.githubusercontent.com/takamasa-aiso/cdsl/main/install.sh | sh
 ```
 
-This command sets up both startup integration and the rendering command. It creates the configuration file when missing, so normal use requires no separate rendering configuration step. Existing rendering settings are preserved.
+The installer fetches CDSL into `~/.local/share/cdsl/source`, installs missing packages and Codex if needed, and configures automatic startup. After it finishes, run `codex` in a new Bash terminal.
 
-Open a new Bash terminal and start Codex as usual:
+**To install and activate CDSL in your current Bash shell in one line**, use:
+
+```bash
+(set -o pipefail; curl -fsSL https://raw.githubusercontent.com/takamasa-aiso/cdsl/main/install.sh | sh) && . "$HOME/.config/cdsl/shell.sh"
+```
+
+The piped `sh` cannot change its parent's PATH, so the final `.` loads the settings into your current Bash shell. `pipefail` also detects download failures and applies only inside the parentheses. Your current shell's options and working directory are preserved.
+
+Then start Codex as usual:
 
 ```bash
 codex
 codex resume
 ```
 
-To activate the integration in your current shell, run this at the shell prompt:
+The installer performs these steps:
+
+- Installs Bash and Git through apt/dnf when missing, then fetches CDSL.
+- Installs missing runtime dependencies, including Python 3.11+, tmux 3.2+, and Codex's `bubblewrap`. On RHEL 9-based systems it selects Python 3.12 when needed.
+- If official Codex is missing, checks curl, certificates, archive tools, and other requirements, then uses the [official installer](https://learn.chatgpt.com/docs/codex/cli) to install the tested Codex CLI 0.153.4. Existing Codex selections are preserved.
+- Rechecks dependencies and existing settings before configuring CDSL startup. Existing rendering settings are preserved.
+
+Only package installation uses sudo, which may ask for your password. Do not run the whole script through sudo. Complete Codex's first-run sign-in when prompted if you have not signed in yet.
+
+Exit Codex and run the installer at your regular terminal prompt. A `codex` alias or function takes precedence over PATH and needs to be checked separately.
+
+To preview changes or select a repository branch, an existing Python interpreter, or official Codex explicitly:
 
 ```bash
+curl -fsSL https://raw.githubusercontent.com/takamasa-aiso/cdsl/main/install.sh | sh -s -- --dry-run
+curl -fsSL https://raw.githubusercontent.com/takamasa-aiso/cdsl/main/install.sh | sh -s -- --ref main --python /usr/bin/python3.12 --real-codex "$HOME/.local/bin/codex"
+```
+
+`--dry-run` does not clone or update CDSL, install packages, or change settings. Downloaded source and installed dependencies are retained if later setup fails; resolve the error and run the same command again. OS security settings and organizational restrictions are not changed automatically.
+
+### Installing from an existing checkout
+
+If you have already cloned CDSL or extracted its ZIP archive, run this inside that directory. The installer uses your existing directory directly:
+
+```bash
+sh ./install.sh && . "$HOME/.config/cdsl/shell.sh"
+```
+
+You can also source the Bash setup script to activate the current shell directly:
+
+```bash
+source ./scripts/setup.sh
+```
+
+### Configuring CDSL without installing packages
+
+If you manage dependencies yourself, the Python command remains available inside the CDSL directory. It stops before writing CDSL settings when prerequisites are missing:
+
+```bash
+python3 scripts/cdsl.py install --codex
 source ~/.config/cdsl/shell.sh
 ```
 
@@ -135,7 +180,7 @@ python3 scripts/cdsl.py install --codex --real-codex "$HOME/.local/bin/codex"
 
 This example uses a common standalone path. If your installation is elsewhere, substitute the official entry you identified.
 
-Keep the cloned directory after installation: CDSL runs directly from it. If you move it, rerun the installer from the new location and update `command` in the rendering configuration to the new absolute path. The installer preserves existing rendering settings.
+Keep the directory used for installation: CDSL runs directly from it. For automatic downloads, this is `~/.local/share/cdsl/source`. If you move it, rerun the installer from the new location and update `command` in the rendering configuration to the new absolute path. The installer preserves existing rendering settings.
 
 ## Reading the display
 
@@ -220,11 +265,18 @@ CDSL's entry remains in place when the official Codex installer replaces its own
 
 If Codex moves to a different location, for example after switching Node versions, rerun the installer with `--real-codex` pointing to the new path. Changes to Codex's log format or CLI behavior may require a CDSL update.
 
-To update CDSL, run these commands in its repository:
+To update CDSL, run the same command used for installation:
 
 ```bash
-git pull --ff-only
-python3 scripts/cdsl.py install --codex
+curl -fsSL https://raw.githubusercontent.com/takamasa-aiso/cdsl/main/install.sh | sh
+```
+
+The managed checkout is updated only when its origin matches this repository, it has no local edits, and the requested update is a fast-forward. Untracked Python bytecode does not block updates. Local edits or diverging history stop the update.
+
+If you use your own clone, run this inside that directory:
+
+```bash
+git pull --ff-only && source ./scripts/setup.sh
 ```
 
 The installer preserves existing shell configuration and changes only its managed blocks. It saves backups with file permissions `0600`. If a managed block has been edited externally or a shell configuration file is a symbolic link, installation stops with an error instead of overwriting it.
@@ -279,7 +331,7 @@ On WSL, CDSL adds a `Ctrl+v` helper that uses available Windows PowerShell to co
 
 ## Diagnostics and uninstallation
 
-Run the following commands from the cloned directory.
+Run the following commands from the CDSL directory used for installation: `~/.local/share/cdsl/source` for automatic downloads.
 
 ### Diagnostics
 
@@ -315,7 +367,7 @@ python3 scripts/cdsl.py uninstall --codex --dry-run
 python3 scripts/cdsl.py uninstall --codex
 ```
 
-`--dry-run` only previews the changes. Uninstallation deletes CDSL's managed shell blocks and dedicated entry; rendering settings, backups, and official Codex are retained.
+`--dry-run` only previews the changes. Uninstallation deletes CDSL's managed shell blocks and dedicated entry; rendering settings, backups, downloaded CDSL source, official Codex, and installed OS packages are retained.
 
 After the uninstall command finishes, clear the cached command location and check resolution at the original Bash prompt where you normally launch `codex`:
 
@@ -350,6 +402,8 @@ Each release tags the commit being published, and its notes describe that versio
 | Location | Purpose |
 |---|---|
 | `cdsl/` | Startup integration, session collection, rendering, and clipboard handling |
+| `install.sh` | POSIX sh entry point that fetches and installs CDSL |
+| `scripts/setup.sh` | Bash dependency setup, CDSL configuration, and current-shell activation when sourced |
 | `scripts/cdsl.py` | Entry point for installation, diagnostics, uninstallation, and startup |
 | `scripts/statusline.py` | Converts JSON into colored display text |
 | `scripts/paste-image.py` | Entry point for the WSL clipboard helper |
