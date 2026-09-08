@@ -29,7 +29,7 @@ Commands such as `codex exec`, `codex update`, help, and non-TTY invocations pas
 - tmux 3.2 or later, tested with 3.4
 - Codex CLI, tested with 0.153.4; `install.sh` installs it if missing
 
-Both standalone and npm installations of Codex are supported. macOS, native Windows, and remote Codex connections are outside the supported scope.
+Both standalone and npm installations of Codex within Linux are supported. macOS, native Windows, and remote Codex connections are outside the supported scope.
 
 `install.sh` installs missing packages through apt/dnf. For normal setup, continue to Installation below. Manual package instructions are available here if you manage dependencies yourself.
 
@@ -105,6 +105,8 @@ The installer performs these steps:
 - If official Codex is missing, checks curl, certificates, archive tools, and other requirements, then uses the [official installer](https://learn.chatgpt.com/docs/codex/cli) to install the tested Codex CLI 0.153.4. Existing Codex selections are preserved.
 - Rechecks dependencies and existing settings before configuring CDSL startup. Existing rendering settings are preserved.
 
+Windows executables and npm launch shims inherited through WSL's PATH are excluded from automatic selection. If no Linux Codex is available, the installer installs the Linux standalone version. You do not need to change Windows-side Node.js or Codex. Linux executables stored on a Windows-mounted drive are not excluded just because of their location.
+
 Only package installation uses sudo, which may ask for your password. Do not run the whole script through sudo. Complete Codex's first-run sign-in when prompted if you have not signed in yet.
 
 Exit Codex and run the installer at your regular terminal prompt. A `codex` alias or function takes precedence over PATH and needs to be checked separately.
@@ -171,6 +173,8 @@ readlink -f "$HOME/.local/bin/codex"
 ```
 
 After CDSL is installed, its dedicated `~/.local/share/cdsl/bin/codex` entry may appear first. Do not pass that entry to `--real-codex`; select an official Codex entry from the candidates above. Use an entry that remains at the same location across updates, rather than a version-specific internal path shown by `readlink`.
+
+On WSL, select a Linux Codex executable. Windows npm launch shims and Windows executables cannot be used through `--real-codex` either.
 
 CDSL prefers the standalone installation's `current` entry, then searches `PATH`. You can select the official executable explicitly when needed:
 

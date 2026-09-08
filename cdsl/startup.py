@@ -56,6 +56,35 @@ def is_cdsl_entry(path: Path, home: Path | None = None) -> bool:
         return False
 
 
+def is_windows_codex(path: Path) -> bool:
+    """Recognize Windows executables and npm shims without running a candidate."""
+    try:
+        resolved = path.resolve()
+        if not resolved.is_file():
+            return False
+        with resolved.open("rb") as stream:
+            head = stream.read(8192)
+        # Linux binaries may live on a Windows-mounted filesystem or use any name.
+        if head.startswith(b"\x7fELF"):
+            return False
+        if head.startswith(b"MZ") or any(
+            entry.suffix.lower() in {".exe", ".cmd", ".bat", ".ps1"}
+            for entry in (path, resolved)
+        ):
+            return True
+        shell_shim = head.startswith((b"#!/bin/sh", b"#!/bin/bash", b"#!/usr/bin/env sh", b"#!/usr/bin/env bash"))
+        npm_codex = b"node_modules/@openai/codex" in head.replace(b"\\", b"/")
+        # Windows npm creates a POSIX shim next to .cmd and .ps1 launchers.
+        # Do not classify shared npm JavaScript by its win32/.exe branches.
+        return shell_shim and npm_codex and any(
+            entry.with_suffix(suffix).is_file()
+            for entry in (path, resolved)
+            for suffix in (".cmd", ".ps1")
+        )
+    except (OSError, RuntimeError):
+        return False
+
+
 def resolve_real_codex(home: Path | None = None, real_codex: str | Path | None = None) -> Path:
     """Choose a stable entry without resolving symlinks to a specific installed version."""
     paths = _paths(home)
@@ -67,6 +96,8 @@ def resolve_real_codex(home: Path | None = None, real_codex: str | Path | None =
             raise ValueError("CDSL cannot be selected as the original Codex executable. Specify the official Codex path.")
         if not path.is_file() or not os.access(path, os.X_OK):
             raise ValueError(f"Could not verify the official Codex executable: {path}")
+        if is_windows_codex(path):
+            raise ValueError("Windows Codex cannot be used for Linux/WSL. Select a Linux Codex executable with --real-codex.")
         return path
     candidates = []
     if home is None and os.environ.get("CODEX_HOME"):
@@ -78,9 +109,10 @@ def resolve_real_codex(home: Path | None = None, real_codex: str | Path | None =
         if directory and Path(directory).is_absolute():
             candidates.append(Path(directory) / "codex")
     for path in candidates:
-        if path.is_file() and os.access(path, os.X_OK) and not is_cdsl_entry(path, paths["home"]):
+        if (path.is_file() and os.access(path, os.X_OK)
+                and not is_cdsl_entry(path, paths["home"]) and not is_windows_codex(path)):
             return path
-    raise ValueError("Could not find official Codex. Install it and try again, or specify its absolute path with --real-codex.")
+    raise ValueError("Could not find Linux Codex. Install it inside Linux/WSL, or specify its absolute path with --real-codex. Windows installations are ignored.")
 
 
 def _selected_rc_names(paths: dict[str, Path]) -> tuple[str, str]:
