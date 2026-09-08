@@ -137,12 +137,23 @@ def run_codex(args):
     return code
 
 
+def report_backups(paths):
+    if paths:
+        print("Backups saved before changing or removing existing files:", file=sys.stderr, flush=True)
+        for path in paths:
+            print("  " + path, file=sys.stderr, flush=True)
+
+
 def configure_codex(args):
     from .auto_setup import install_auto, uninstall_auto
     operation = install_auto if args.command == "install" else uninstall_auto
     options = {"dry_run": args.dry_run}
+    if not args.dry_run:
+        options["on_backups"] = report_backups
     if args.command == "install":
         options["real_codex"] = args.real_codex
+    else:
+        options["purge"] = args.purge
     result = operation(**options)
     if args.dry_run:
         print(json.dumps(result, ensure_ascii=False, indent=2))
@@ -153,7 +164,7 @@ def configure_codex(args):
         from .startup import resolve_real_codex
 
         if result.get("action") == "unchanged":
-            print("No managed CDSL shell integration was found.")
+            print("CDSL shell integration is already clean; no files were changed.")
         else:
             print("CDSL shell integration removed.")
         print("Run this in your current Bash shell to clear its cached command path:")
@@ -177,17 +188,30 @@ def configure_codex(args):
 def doctor():
     from .auto_setup import inspect_installation
 
-    checks = inspect_installation()["checks"]
+    inspection = inspect_installation()
+    checks = inspection["checks"]
     for check in checks:
         detail = ": " + check["detail"] if check.get("detail") else ""
         print(f"{'OK' if check['ok'] else 'NG'}: {check['name']}{detail}")
+    startup = inspection["startup_inspection"]
+    print("Startup artifacts: " + ("clean" if startup["clean"] else "present"))
+    for artifact in startup["artifacts"]:
+        detail = ": " + artifact["detail"] if artifact.get("detail") else ""
+        print(f"  {artifact['path']}: {artifact['status']} ({artifact['kind']}){detail}")
+    for issue in startup["issues"]:
+        print("NG: Startup recovery: " + issue)
+    if startup["issues"] and startup.get("recovery_command"):
+        print("Preview recovery before removing startup artifacts:")
+        print("  " + startup["recovery_command"])
+        if startup.get("backup_directory"):
+            print("Recovery backup directory: " + startup["backup_directory"])
     if os.environ.get("WSL_DISTRO_NAME"):
         available = shutil.which("powershell.exe") is not None
         print("Optional: Windows image clipboard support " + ("available" if available else "not detected (not required for the status display)"))
     print("Display: five-row tmux status pane / CCSL style and permission mode")
     print("Startup: dedicated CDSL PATH entry / official Codex files remain unchanged")
     print("Data: local JSONL for the active Codex session and Git metadata")
-    if not all(check["ok"] for check in checks):
+    if startup["issues"] or not all(check["ok"] for check in checks):
         print("Check the requirements in README.en.md.")
         return 1
     return 0
@@ -211,6 +235,8 @@ def parser():
         command.add_argument("--dry-run", action="store_true", help="Show planned changes without applying them")
         if name == "install":
             command.add_argument("--real-codex", type=Path, help="Path to the official Codex executable")
+        else:
+            command.add_argument("--purge", action="store_true", help="Back up and remove startup artifacts even if their ownership metadata is missing or damaged")
     return p
 
 

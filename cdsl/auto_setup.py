@@ -104,6 +104,11 @@ def inspect_installation(*, home=None, real_codex=None):
     except (OSError, ValueError, ImportError, SyntaxError) as error:
         checks.append({"name": "Official Codex and startup configuration", "ok": False, "detail": str(error)})
     try:
+        from .startup import inspect_startup
+        startup_inspection = inspect_startup(home=startup_home)
+    except (OSError, ValueError, ImportError, SyntaxError) as error:
+        startup_inspection = {"clean": False, "artifacts": [], "issues": [str(error)]}
+    try:
         _check_renderer(config)
         checks.append({"name": "Renderer configuration and executable", "ok": True})
     except (OSError, ValueError, ImportError, SyntaxError) as error:
@@ -111,6 +116,7 @@ def inspect_installation(*, home=None, real_codex=None):
     return {
         "checks": checks,
         "startup": startup,
+        "startup_inspection": startup_inspection,
         "status_config": {"path": str(config), "action": "keep" if config.exists() else "create"},
     }
 
@@ -126,7 +132,7 @@ def default_config_text():
     )
 
 
-def install_auto(*, dry_run=False, home=None, real_codex=None):
+def install_auto(*, dry_run=False, home=None, real_codex=None, on_backups=None):
     inspection = inspect_installation(home=home, real_codex=real_codex)
     failures = [check for check in inspection["checks"] if not check["ok"]]
     if failures:
@@ -162,7 +168,9 @@ def install_auto(*, dry_run=False, home=None, real_codex=None):
             # Publish the completed file without overwriting a concurrently created config.
             os.link(temporary, config)
             created = True
-        install_startup(home=startup_home, real_codex=real_codex)
+        result["startup"] = install_startup(
+            home=startup_home, real_codex=real_codex, on_backups=on_backups,
+        )
     except Exception:
         if created and config.is_file() and config.read_bytes() == content:
             config.unlink()
@@ -173,8 +181,9 @@ def install_auto(*, dry_run=False, home=None, real_codex=None):
     return result
 
 
-def uninstall_auto(*, dry_run=False, home=None):
+def uninstall_auto(*, dry_run=False, home=None, purge=False, on_backups=None):
     from .startup import uninstall_startup
 
     # Preserve renderer customizations when removing shell integration.
-    return uninstall_startup(home=Path(home) if home is not None else Path.home(), dry_run=dry_run)
+    return uninstall_startup(home=Path(home) if home is not None else Path.home(),
+                             dry_run=dry_run, purge=purge, on_backups=on_backups)
