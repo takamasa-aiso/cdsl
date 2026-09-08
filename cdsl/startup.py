@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 import shlex
 import stat
+import sys
 import tempfile
 import uuid
 from typing import Any
@@ -156,6 +157,12 @@ def _state(paths: dict[str, Path]) -> tuple[dict[str, Any] | None, dict[str, Any
     if "real_codex" in saved and (not isinstance(saved["real_codex"], str)
                                   or not Path(saved["real_codex"]).is_absolute()):
         raise ValueError("The saved path to the original Codex executable is invalid.")
+    if "python_executable" in saved and (
+        not isinstance(saved["python_executable"], str)
+        or "\0" in saved["python_executable"]
+        or not Path(saved["python_executable"]).is_absolute()
+    ):
+        raise ValueError("The saved Python executable path is invalid.")
     for name in saved["rc"]:
         record = saved["rc"].get(name)
         if (
@@ -170,8 +177,6 @@ def _state(paths: dict[str, Path]) -> tuple[dict[str, Any] | None, dict[str, Any
 
 
 def _shim(paths: dict[str, Path]) -> bytes:
-    import sys
-
     entry = (
         "import os\n"
         "import sys\n\n"
@@ -298,7 +303,8 @@ def _prepare(home: Path | None, uninstall: bool = False,
     if uninstall and saved is None:
         return {"paths": paths, "operations": [], "result": {**result, "action": "unchanged", "changes": []}}
     new_state = {"version": 1, "home": str(paths["home"]),
-                 "real_codex": str(paths["real_codex"]), "files": {}, "rc": {}}
+                 "real_codex": str(paths["real_codex"]), "python_executable": sys.executable,
+                 "files": {}, "rc": {}}
     private_operations = []
     for name, content, mode in (("shim", _shim(paths), 0o755), ("hook", _hook(paths), 0o600)):
         before = _entry(paths[name])

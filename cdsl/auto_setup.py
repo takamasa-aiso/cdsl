@@ -14,7 +14,7 @@ _RUNTIME_FILES = (
     "cdsl/__init__.py", "cdsl/auto_setup.py", "cdsl/binding.py",
     "cdsl/ccsl_render.py", "cdsl/cli.py", "cdsl/clipboard.py",
     "cdsl/codex_entry.py", "cdsl/collector.py", "cdsl/launcher.py",
-    "cdsl/permissions.py", "cdsl/renderer.py", "cdsl/startup.py",
+    "cdsl/permissions.py", "cdsl/python_runtime.py", "cdsl/renderer.py", "cdsl/startup.py",
     "cdsl/status_command.py", "scripts/cdsl.py", "scripts/paste-image.py",
     "scripts/refresh-statusline.py", "scripts/statusline.py",
 )

@@ -82,7 +82,7 @@ curl -fsSL https://raw.githubusercontent.com/takamasa-aiso/cdsl/main/install.sh 
 (set -o pipefail; curl -fsSL https://raw.githubusercontent.com/takamasa-aiso/cdsl/main/install.sh | sh) && . "$HOME/.config/cdsl/shell.sh"
 ```
 
-Run the update, diagnostic, and uninstall commands from the CDSL directory used for installation.
+Set the installation directory in “Common preparation for maintenance” below before updating, diagnosing, or uninstalling CDSL.
 
 ### Manual installation
 
@@ -108,11 +108,24 @@ codex
 codex resume
 ```
 
-To activate the integration in your current shell, run this at the shell prompt:
+After a successful installation, run this to activate the current Bash shell. Both installation methods use this same file for the same user. It works from any directory; no `cd` is required.
 
 ```bash
-source ~/.config/cdsl/shell.sh
+source "$HOME/.config/cdsl/shell.sh"
 ```
+
+### Common preparation for maintenance
+
+In the installing user's Bash shell, run one setting from this table. The manual example assumes a clone at `~/cdsl`; replace it with the actual absolute path if yours is elsewhere. When using a local `install.sh`, select the CDSL directory containing that script.
+
+| Installation method | Setting to run |
+|---|---|
+| `install.sh` through curl | `CDSL_DIR="$HOME/.local/share/cdsl/source"` |
+| Manual clone or local `install.sh` | `CDSL_DIR="$HOME/cdsl"` (example) |
+
+The maintenance commands below use this variable to address scripts by absolute path, so they work from any directory. Set the variable again in a new Bash shell. Use the same user that installed CDSL: root and a regular user have different `HOME` directories.
+
+Even if `python3` remains at 3.9, as on AlmaLinux 9, the management scripts automatically switch to the installation's Python or another available Python 3.11 or later. You do not need to replace the OS's `python3`.
 
 ### Finding the official Codex executable
 
@@ -148,7 +161,7 @@ After CDSL is installed, its dedicated `~/.local/share/cdsl/bin/codex` entry may
 CDSL prefers the standalone installation's `current` entry, then searches `PATH`. You can select the official executable explicitly when needed:
 
 ```bash
-python3 scripts/cdsl.py install --codex --real-codex "$HOME/.local/bin/codex"
+python3 "$CDSL_DIR/scripts/cdsl.py" install --codex --real-codex "$HOME/.local/bin/codex"
 ```
 
 This example uses a common standalone path. If your installation is elsewhere, substitute the official entry you identified.
@@ -240,11 +253,10 @@ CDSL's entry remains in place when the official Codex installer replaces its own
 
 If Codex moves to a different location, for example after switching Node versions, rerun the installer with `--real-codex` pointing to the new path. Changes to Codex's log format or CLI behavior may require a CDSL update.
 
-To update CDSL, run these commands in its repository:
+To update a Git checkout of CDSL, set `CDSL_DIR` as described in “Common preparation for maintenance,” then run this command. `git -C` selects the target directory, so no `cd` is needed.
 
 ```bash
-git pull --ff-only
-python3 scripts/cdsl.py install --codex
+git -C "$CDSL_DIR" pull --ff-only && python3 "$CDSL_DIR/scripts/cdsl.py" install --codex
 ```
 
 The installer preserves existing shell configuration and changes only its managed blocks. It saves backups with file permissions `0600`. If a managed block has been edited externally or a shell configuration file is a symbolic link, installation stops with an error instead of overwriting it.
@@ -299,12 +311,12 @@ On WSL, CDSL adds a `Ctrl+v` helper that uses available Windows PowerShell to co
 
 ## Diagnostics and uninstallation
 
-Run the following commands from the cloned directory.
+These steps are shared by both installation methods. First set `CDSL_DIR` as described in “Common preparation for maintenance.” Both methods use the same user's CDSL startup integration and management state. Diagnostics also check the selected source files, so select the directory actually used for installation.
 
 ### Diagnostics
 
 ```bash
-python3 scripts/cdsl.py doctor
+python3 "$CDSL_DIR/scripts/cdsl.py" doctor
 ```
 
 `doctor` runs the same prerequisite checks as the installer and reports `OK` or `NG` for each item, with details of any problems. It does not change settings or repair them automatically, and it can also run before installation.
@@ -325,29 +337,30 @@ It does not test Codex sign-in, the renderer's actual output, conversation or us
 To reload only the lower display while keeping the current Codex session running, execute this from that session:
 
 ```bash
-python3 scripts/refresh-statusline.py
+python3 "$CDSL_DIR/scripts/refresh-statusline.py"
 ```
 
 ### Uninstallation
 
+Exit Codex and run these commands at the installing user's regular Bash prompt.
+
 ```bash
-python3 scripts/cdsl.py uninstall --codex --dry-run
-python3 scripts/cdsl.py uninstall --codex
+python3 "$CDSL_DIR/scripts/cdsl.py" uninstall --codex --dry-run
+python3 "$CDSL_DIR/scripts/cdsl.py" uninstall --codex && hash -r
 ```
 
-`--dry-run` only previews the changes. Uninstallation deletes CDSL's managed shell blocks and dedicated entry; rendering settings, backups, and official Codex are retained.
+`--dry-run` only previews the changes. Uninstallation removes CDSL's managed shell blocks, dedicated entry, and `shell.sh`. The CDSL source directory, rendering settings, backups, official Codex, and installed OS packages are retained. You do not need to source CDSL again after uninstalling it.
 
-After the uninstall command finishes, clear the cached command location and check resolution at the original Bash prompt where you normally launch `codex`:
+The final `hash -r` also clears CDSL's cached command location in the current Bash shell. You can then check command resolution:
 
 ```bash
-hash -r
 type -a codex
 type -aP codex
 ```
 
 Run `hash -r` in that calling Bash shell. CDSL's Python process cannot clear the parent shell's cache. Opening a new terminal also applies the change.
 
-When the uninstall command can locate official Codex, it prints an absolute path for direct startup. Run that path if `codex` still cannot be found. If no path is printed, use “Finding the official Codex executable” above or reinstall official Codex.
+When the uninstall command can locate official Codex, it prints an absolute path for direct startup. Use that Linux executable if `codex` cannot be found or resolves to another entry, such as a Windows installation on WSL. `hash -r` does not change PATH itself. If no path is printed, use “Finding the official Codex executable” above or reinstall official Codex.
 
 ## Reporting security issues
 
