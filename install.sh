@@ -118,7 +118,7 @@
         if [ -e "$cdsl_destination" ] && [ ! -d "$cdsl_destination" ]; then
             _cdsl_fail 'The managed source path is not a directory.'
         fi
-        mkdir -p -- "$cdsl_data" || _cdsl_fail 'Could not create the CDSL data directory.'
+        (umask 077; mkdir -p -- "$cdsl_data") || _cdsl_fail 'Could not create the CDSL data directory.'
         cdsl_lock=$cdsl_data/.install-lock
         mkdir -- "$cdsl_lock" 2>/dev/null || \
             _cdsl_fail "Another installer may be running. If none is running, remove the empty lock directory: $cdsl_lock"
