@@ -8,11 +8,11 @@ sys.dont_write_bytecode = True
 
 from pathlib import Path
 
-if sys.version_info < (3, 11):
-    print("cdsl: Python 3.11 or later is required.", file=sys.stderr)
-    raise SystemExit(1)
-
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from cdsl.python_runtime import ensure_python
+
+ensure_python(__file__)
+
 from cdsl.cli import main
 
 raise SystemExit(main())

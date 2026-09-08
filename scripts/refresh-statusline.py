@@ -1,14 +1,22 @@
 #!/usr/bin/env python3
 """Reload only the current status pane while keeping Codex running."""
 
-import json
-import os
-from pathlib import Path
-import re
 import sys
+
+sys.dont_write_bytecode = True
+
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
+from cdsl.python_runtime import ensure_python
+
+ensure_python(__file__)
+
+import json
+import os
+import re
+
 from cdsl.launcher import _command, _tmux
 
 

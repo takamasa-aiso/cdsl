@@ -82,7 +82,7 @@ curl -fsSL https://raw.githubusercontent.com/takamasa-aiso/cdsl/main/install.sh 
 (set -o pipefail; curl -fsSL https://raw.githubusercontent.com/takamasa-aiso/cdsl/main/install.sh | sh) && . "$HOME/.config/cdsl/shell.sh"
 ```
 
-更新・診断・アンインストールのコマンドは、利用したCDSLフォルダー内で実行します。
+更新・診断・アンインストールは、下記の「管理操作の共通準備」で導入先を指定して実行します。
 
 ### 手動で導入する場合
 
@@ -108,11 +108,24 @@ codex
 codex resume
 ```
 
-現在のシェルへ反映する場合は、シェルのプロンプトで次を実行します。
+インストール成功後、現在のBashへ反映する場合は次を実行します。同じユーザーで導入した場合、このファイルは両方式で共通です。作業ディレクトリには依存せず、`cd`は不要です。
 
 ```bash
-source ~/.config/cdsl/shell.sh
+source "$HOME/.config/cdsl/shell.sh"
 ```
+
+### 管理操作の共通準備
+
+導入したユーザーのBashで、次の表から該当する設定を1つ実行します。手動導入の例は`~/cdsl`にcloneした場合です。別の場所なら、実際の絶対パスへ置き換えてください。手元の`install.sh`で導入した場合も、そのCDSLフォルダーを指定します。
+
+| 導入方法 | 実行する設定 |
+|---|---|
+| curl経由の`install.sh` | `CDSL_DIR="$HOME/.local/share/cdsl/source"` |
+| 手動clone・ローカルの`install.sh` | `CDSL_DIR="$HOME/cdsl"`（例） |
+
+以降の管理コマンドはこの変数を使ってスクリプトを絶対パスで指定するため、どのディレクトリからでも実行できます。新しいBashを開いた場合は、変数を設定し直してください。rootと一般ユーザーでは`HOME`が異なるため、導入したユーザーのまま操作します。
+
+AlmaLinux 9などで`python3`が3.9のままでも、管理スクリプトは導入時のPythonまたは利用可能なPython 3.11以上へ自動で切り替えます。OSの`python3`を置き換える必要はありません。
 
 ### 公式Codexのパスを確認する
 
@@ -148,7 +161,7 @@ CDSL導入後は、専用の`~/.local/share/cdsl/bin/codex`が検索結果の先
 CDSLはstandalone版の`current`を優先し、見つからない場合はPATHから探します。必要に応じて、導入時に公式の実行ファイルを明示できます。
 
 ```bash
-python3 scripts/cdsl.py install --codex --real-codex "$HOME/.local/bin/codex"
+python3 "$CDSL_DIR/scripts/cdsl.py" install --codex --real-codex "$HOME/.local/bin/codex"
 ```
 
 上はstandalone版の一般的なパスを使う例です。異なる場所にある場合は、確認した公式Codexの起動入口へ置き換えてください。
@@ -240,11 +253,10 @@ Codexの`/keymap`で`next_permission_mode`にキーを割り当て、メニュ�
 
 Nodeのバージョン管理などでCodexのインストール先自体を変えた場合は、`--real-codex` で新しいパスを指定して再登録してください。Codex側のログ形式やCLI仕様が変わった場合はCDSLの対応が必要になることがあります。
 
-CDSLを更新する場合は、このリポジトリ内で次を実行します。
+Gitで取得したCDSLを更新する場合は、「管理操作の共通準備」で`CDSL_DIR`を設定してから次を実行します。`git -C`で対象を指定するため、`cd`は不要です。
 
 ```bash
-git pull --ff-only
-python3 scripts/cdsl.py install --codex
+git -C "$CDSL_DIR" pull --ff-only && python3 "$CDSL_DIR/scripts/cdsl.py" install --codex
 ```
 
 シェル設定の既存部分は保持し、CDSLの管理ブロックだけを追加・更新します。変更前のファイルは0600のバックアップへ保存します。管理ブロックが外部で編集されている場合や、編集対象のシェル設定がシンボリックリンクの場合は、上書きせずエラーにします。
@@ -299,12 +311,12 @@ WSLでは、`Ctrl+v`にCDSLのWindowsクリップボード補助が入り、利�
 
 ## 診断・アンインストール
 
-以下のコマンドはcloneしたフォルダーで実行します。
+導入方法にかかわらず、以下の手順を共通で使えます。先に「管理操作の共通準備」で`CDSL_DIR`を設定してください。本体の配置先が異なっていても、同じユーザーのCDSL起動連携と管理情報を対象にします。診断は指定した本体のファイルも確認するため、実際に導入したフォルダーを選びます。
 
 ### 診断
 
 ```bash
-python3 scripts/cdsl.py doctor
+python3 "$CDSL_DIR/scripts/cdsl.py" doctor
 ```
 
 `doctor`は、インストール時と同じ事前確認を行い、項目ごとに`OK`・`NG`と問題の詳細を表示します。設定の変更や自動修復は行わず、導入前にも使えます。
@@ -325,29 +337,30 @@ Codexのログイン状態、描画コマンドの実行結果、会話・利用
 実行中のCDSL下部表示だけを再読み込みする場合は、そのCodexセッション内から次を実行できます。
 
 ```bash
-python3 scripts/refresh-statusline.py
+python3 "$CDSL_DIR/scripts/refresh-statusline.py"
 ```
 
 ### アンインストール
 
+Codexを終了し、導入したユーザーの通常のBashプロンプトで実行します。
+
 ```bash
-python3 scripts/cdsl.py uninstall --codex --dry-run
-python3 scripts/cdsl.py uninstall --codex
+python3 "$CDSL_DIR/scripts/cdsl.py" uninstall --codex --dry-run
+python3 "$CDSL_DIR/scripts/cdsl.py" uninstall --codex && hash -r
 ```
 
-`--dry-run`は変更予定の確認だけを行います。アンインストールすると、管理ブロックと専用入口を除去し、描画設定・バックアップ・公式Codexは残します。
+`--dry-run`は変更予定の確認だけを行います。アンインストールすると、管理ブロック・専用入口・`shell.sh`を除去します。CDSL本体のフォルダー、描画設定、バックアップ、公式Codex、導入済みOSパッケージは残します。アンインストール後は`source`でCDSLを読み込み直す必要はありません。
 
-アンインストールコマンドの終了後、普段`codex`を起動する元のBashプロンプトで、保存済みのコマンド位置を消して解決先を確認してください。
+末尾の`hash -r`で、現在のBashに保存されたCDSLのコマンド位置も消します。その後、解決先を確認できます。
 
 ```bash
-hash -r
 type -a codex
 type -aP codex
 ```
 
 `hash -r`は呼び出し元のBashで実行する必要があり、CDSLのPythonプロセスからそのキャッシュを消すことはできません。新しいターミナルを開く方法でも反映できます。
 
-公式Codexを検出できた場合は、アンインストールコマンドが直接起動用の絶対パスを表示します。`codex`がまだ解決できなければ、そのパスを実行してください。パスも表示されない場合は、上の「公式Codexのパスを確認する」で場所を調べるか、公式Codexを再インストールしてください。
+公式Codexを検出できた場合は、アンインストールコマンドが直接起動用の絶対パスを表示します。`codex`が見つからない場合や、WSLでWindows版など別の入口が選ばれる場合は、表示されたLinux版の絶対パスを実行してください。`hash -r`はPATH自体を変更しません。パスも表示されない場合は、上の「公式Codexのパスを確認する」で場所を調べるか、公式Codexを再インストールしてください。
 
 ## セキュリティ上の問題の報告
 
