@@ -75,17 +75,23 @@ Codexは[公式のCodex CLI導入手順](https://learn.chatgpt.com/docs/codex/cl
 
 ## インストール
 
-Gitが導入済みで、`cdsl`フォルダーがまだない場所から、**現在のBashプロンプトで次の1行を実行します。** リポジトリの取得、不足パッケージの導入、CDSLの設定、現在のターミナルへの反映をまとめて行います。
+`curl`が使えるLinux / WSLの通常のターミナルで、次の1行を実行します。事前のGit導入やcloneは不要です。
 
 ```bash
-git clone https://github.com/takamasa-aiso/cdsl.git && source ./cdsl/install.sh
+curl -fsSL https://raw.githubusercontent.com/takamasa-aiso/cdsl/main/install.sh | sh
 ```
 
-`&&`によりclone成功時だけインストールを開始し、`source`で現在のBashへ設定を反映します。作業ディレクトリは移動しません。`git clone`はスクリプトを標準出力へ渡すコマンドではないため、ここではパイプ（`|`）を使いません。
+CDSL本体を`~/.local/share/cdsl/source`へ取得し、不足パッケージと必要な場合のCodexを導入して、自動起動を設定します。完了後は新しいBashターミナルで`codex`を実行できます。
 
-すでにclone済みなら、CDSLフォルダー内で`source ./install.sh`だけで構いません。Gitがない場合は、GitHubの「Code → Download ZIP」を展開したフォルダー内で同じコマンドを実行できます。`install.sh`単体ではなく、CDSLのフォルダー全体を保持してください。
+**現在のBashへも同じ1行で反映する場合**は、次を使います。
 
-完了後は、同じターミナルでそのまま起動します。
+```bash
+(set -o pipefail; curl -fsSL https://raw.githubusercontent.com/takamasa-aiso/cdsl/main/install.sh | sh) && . "$HOME/.config/cdsl/shell.sh"
+```
+
+パイプ先の`sh`は呼び出し元のPATHを変更できないため、末尾の`.`で現在のBashへ設定を読み込みます。`pipefail`はダウンロード失敗も検出するためのもので、括弧の中だけに適用します。現在のBashのオプションや作業ディレクトリは変更しません。
+
+完了後は、そのまま起動できます。
 
 ```bash
 codex
@@ -94,23 +100,37 @@ codex resume
 
 インストーラーは次を行います。
 
-- Python 3.11以上、Git、tmux 3.2以上、Codex用の`bubblewrap`を確認し、不足分をapt/dnfで導入します。RHEL 9系では、必要に応じてPython 3.12を選びます。
-- 公式Codexがなければ、必要なcurl・証明書・展開用コマンドなどを導入し、[公式インストーラー](https://learn.chatgpt.com/docs/codex/cli)で動作確認済みのCodex CLI 0.153.4を導入します。既存Codexの選択は引き継ぎます。
-- 依存関係と既存設定を再確認してから、起動連携と描画設定を作成します。既存の描画設定は保持します。
-- 現在のBashへPATHを反映し、コマンドのキャッシュを消します。個別の`source`や`hash -r`は不要です。
+- BashとGitがなければ、apt/dnfで導入してからCDSL本体を取得します。
+- Python 3.11以上、tmux 3.2以上、Codex用の`bubblewrap`など、不足する実行環境を導入します。RHEL 9系では必要に応じてPython 3.12を選びます。
+- 公式Codexがなければ、curl・証明書・展開用コマンドなどを確認し、[公式インストーラー](https://learn.chatgpt.com/docs/codex/cli)で動作確認済みのCodex CLI 0.153.4を導入します。既存Codexの選択は引き継ぎます。
+- 依存関係と既存設定を再確認してから、CDSLの起動連携を設定します。既存の描画設定は保持します。
 
 パッケージ導入だけにsudoを使うため、必要に応じてパスワードを入力してください。スクリプト全体をsudoで実行する必要はありません。Codexへの初回ログインが必要なら、起動時の案内に従ってください。
 
-`bash install.sh`や`./install.sh`では親シェルのPATHを変更できないため、変更前に停止して`source`での実行を案内します。Codexを終了して通常のBashプロンプトで実行してください。`codex`というaliasや関数がある場合も、それを整理してから再実行するよう案内します。
+Codexを終了して、通常のターミナルのプロンプトで実行してください。`codex`というaliasや関数がある場合は、PATHより優先されるため別途確認してください。
 
-変更予定だけを確認する場合や、既存のPython・公式Codexを明示する場合は、CDSLフォルダー内で次のオプションを使えます。
+変更予定だけの確認や、取得するブランチ・既存のPython・公式Codexの指定には、次の形式を使えます。
 
 ```bash
-source ./install.sh --dry-run
-source ./install.sh --python /usr/bin/python3.12 --real-codex "$HOME/.local/bin/codex"
+curl -fsSL https://raw.githubusercontent.com/takamasa-aiso/cdsl/main/install.sh | sh -s -- --dry-run
+curl -fsSL https://raw.githubusercontent.com/takamasa-aiso/cdsl/main/install.sh | sh -s -- --ref main --python /usr/bin/python3.12 --real-codex "$HOME/.local/bin/codex"
 ```
 
-`--dry-run`はパッケージ・Codex・設定・現在のシェルを変更しません。導入に失敗した場合も、失敗した状態で現在のシェルを切り替えることはありません。すでに導入済みのOSパッケージや公式Codexは残るため、原因を解消して同じコマンドを再実行してください。OSのセキュリティ設定や組織の制約は自動変更しません。
+`--dry-run`は本体のclone・更新、パッケージ導入、設定変更を行いません。取得済みのソースや導入済みの依存関係は、後続の設定処理が失敗しても保持します。原因を解消して同じコマンドを再実行してください。OSのセキュリティ設定や組織の制約は自動変更しません。
+
+### 取得済みのCDSLから導入する場合
+
+Gitでclone済み、またはZIPを展開済みの場合は、そのCDSLフォルダー内で次を実行できます。この場合は、手元のフォルダーをそのまま使用します。
+
+```bash
+sh ./install.sh && . "$HOME/.config/cdsl/shell.sh"
+```
+
+現在のBashへ直接反映する導入本体も利用できます。
+
+```bash
+source ./scripts/setup.sh
+```
 
 ### パッケージを導入せずCDSLだけ設定する場合
 
@@ -160,7 +180,7 @@ python3 scripts/cdsl.py install --codex --real-codex "$HOME/.local/bin/codex"
 
 上はstandalone版の一般的なパスを使う例です。異なる場所にある場合は、確認した公式Codexの起動入口へ置き換えてください。
 
-CDSLはcloneしたフォルダーから動作します。導入後もこのフォルダーを保持してください。場所を移した場合は、新しい場所からインストールを再実行し、描画設定の `command` も新しい絶対パスへ変更してください。既存の描画設定は自動では上書きしません。
+CDSLは導入に使用したフォルダーから動作します。自動取得の場合は`~/.local/share/cdsl/source`です。導入後もこのフォルダーを保持してください。場所を移した場合は、新しい場所からインストールを再実行し、描画設定の `command` も新しい絶対パスへ変更してください。既存の描画設定は自動では上書きしません。
 
 ## 表示の意味
 
@@ -245,10 +265,18 @@ Codexの`/keymap`で`next_permission_mode`にキーを割り当て、メニュ�
 
 Nodeのバージョン管理などでCodexのインストール先自体を変えた場合は、`--real-codex` で新しいパスを指定して再登録してください。Codex側のログ形式やCLI仕様が変わった場合はCDSLの対応が必要になることがあります。
 
-CDSLを更新する場合は、このリポジトリ内で次を実行します。
+CDSLを更新する場合は、導入時と同じコマンドを再実行します。
 
 ```bash
-git pull --ff-only && source ./install.sh
+curl -fsSL https://raw.githubusercontent.com/takamasa-aiso/cdsl/main/install.sh | sh
+```
+
+自動取得先は同じGitHubリポジトリか、手元で変更されていないかを確認し、fast-forwardで進められる場合だけ更新します。Pythonの未追跡キャッシュは更新を妨げません。ローカルの変更や履歴の分岐がある場合は停止します。
+
+自分でcloneしたフォルダーから利用している場合は、そのフォルダー内で次を実行してください。
+
+```bash
+git pull --ff-only && source ./scripts/setup.sh
 ```
 
 シェル設定の既存部分は保持し、CDSLの管理ブロックだけを追加・更新します。変更前のファイルは0600のバックアップへ保存します。管理ブロックが外部で編集されている場合や、編集対象のシェル設定がシンボリックリンクの場合は、上書きせずエラーにします。
@@ -303,7 +331,7 @@ WSLでは、`Ctrl+v`にCDSLのWindowsクリップボード補助が入り、利�
 
 ## 診断・アンインストール
 
-以下のコマンドはcloneしたフォルダーで実行します。
+以下のコマンドは、導入に使用したCDSLフォルダーで実行します。自動取得の場合は`~/.local/share/cdsl/source`です。
 
 ### 診断
 
@@ -339,7 +367,7 @@ python3 scripts/cdsl.py uninstall --codex --dry-run
 python3 scripts/cdsl.py uninstall --codex
 ```
 
-`--dry-run`は変更予定の確認だけを行います。アンインストールすると、管理ブロックと専用入口を除去し、描画設定・バックアップ・公式Codexは残します。
+`--dry-run`は変更予定の確認だけを行います。アンインストールすると、管理ブロックと専用入口を除去し、描画設定・バックアップ・取得済みCDSL本体・公式Codex・導入済みOSパッケージは残します。
 
 アンインストールコマンドの終了後、普段`codex`を起動する元のBashプロンプトで、保存済みのコマンド位置を消して解決先を確認してください。
 
@@ -374,7 +402,8 @@ type -aP codex
 | 場所 | 用途 |
 |---|---|
 | `cdsl/` | 起動連携、セッション取得、描画、画像貼り付けの本体 |
-| `install.sh` | 不足パッケージ・Codexの導入、CDSL設定、現在のBashへの反映 |
+| `install.sh` | HTTP経由で本体を取得するPOSIX shの導入入口 |
+| `scripts/setup.sh` | Bashによる依存導入・CDSL設定・source時の現在のシェルへの反映 |
 | `scripts/cdsl.py` | 導入・診断・アンインストールと起動処理の入口 |
 | `scripts/statusline.py` | JSONを表示用の色付き文字列へ変換 |
 | `scripts/paste-image.py` | WSLクリップボード補助の入口 |
