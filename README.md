@@ -29,7 +29,7 @@
 - tmux 3.2以上（3.4で検証）
 - Codex CLI（0.153.4で検証。未導入の場合は`install.sh`で導入）
 
-Codexのstandalone版とnpm版に対応します。macOS、Windowsネイティブ版、リモートCodex接続は対象外です。
+Linux環境へ導入したCodexのstandalone版とnpm版に対応します。macOS、Windowsネイティブ版、リモートCodex接続は対象外です。
 
 `install.sh`はapt/dnfを使って不足パッケージを導入します。通常は下の「インストール」へ進んでください。パッケージを自分で管理する場合の手順は以下です。
 
@@ -105,6 +105,8 @@ codex resume
 - 公式Codexがなければ、curl・証明書・展開用コマンドなどを確認し、[公式インストーラー](https://learn.chatgpt.com/docs/codex/cli)で動作確認済みのCodex CLI 0.153.4を導入します。既存Codexの選択は引き継ぎます。
 - 依存関係と既存設定を再確認してから、CDSLの起動連携を設定します。既存の描画設定は保持します。
 
+WSLのPATHに含まれるWindows版の実行ファイルやnpmの起動ラッパーは、自動選択から除外します。Linux版がなければLinux用standalone版を導入します。Windows側のNode.jsやCodexを変更する必要はありません。Windowsドライブ上に置いたLinux用実行ファイルは、配置場所だけを理由に除外しません。
+
 パッケージ導入だけにsudoを使うため、必要に応じてパスワードを入力してください。スクリプト全体をsudoで実行する必要はありません。Codexへの初回ログインが必要なら、起動時の案内に従ってください。
 
 Codexを終了して、通常のターミナルのプロンプトで実行してください。`codex`というaliasや関数がある場合は、PATHより優先されるため別途確認してください。
@@ -173,6 +175,8 @@ readlink -f "$HOME/.local/bin/codex"
 CDSL導入後は、専用の`~/.local/share/cdsl/bin/codex`が検索結果の先頭になることがあります。これは`--real-codex`に指定せず、上の候補から公式Codexの起動入口を選んでください。`readlink`で表示される版ごとの内部パスではなく、更新後も同じ場所にある起動入口を指定すると、Codexの更新に追従できます。
 
 CDSLはstandalone版の`current`を優先し、見つからない場合はPATHから探します。必要に応じて、導入時に公式の実行ファイルを明示できます。
+
+WSLではLinux用のCodexを指定してください。Windows版のnpmラッパーや`.exe`などは、`--real-codex`へ指定しても使用できません。
 
 ```bash
 python3 scripts/cdsl.py install --codex --real-codex "$HOME/.local/bin/codex"

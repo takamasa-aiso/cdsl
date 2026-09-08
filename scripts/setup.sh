@@ -253,8 +253,22 @@ PY
             printf '%s\n' 'CDSL: Installing official Codex 0.153.4 for the current user.'
             command curl -fsSL --proto '=https' --tlsv1.2 --connect-timeout 15 --max-time 120 \
                 https://chatgpt.com/codex/install.sh -o "$cdsl_download" || return 1
+            cdsl_installer_path=$("$cdsl_python" -B - "$cdsl_root" "$cdsl_codex_bin" <<'PY'
+import os
+import sys
+from pathlib import Path
+sys.path.insert(0, sys.argv[1])
+from cdsl.startup import is_windows_codex
+
+# The official installer probes PATH too. Hide only Windows Codex candidates
+# from that child process, leaving the caller's Windows integration intact.
+directories = os.environ.get('PATH', os.defpath).split(os.pathsep)
+directories = [item for item in directories if not is_windows_codex(Path(item) / 'codex')]
+print(os.pathsep.join([sys.argv[2], *directories]))
+PY
+            ) || return 1
             # Avoid adding an extra shell-startup block in the official installer.
-            PATH="$cdsl_codex_bin:$PATH" CODEX_INSTALL_DIR="$cdsl_codex_bin" CODEX_NON_INTERACTIVE=1 \
+            PATH="$cdsl_installer_path" CODEX_INSTALL_DIR="$cdsl_codex_bin" CODEX_NON_INTERACTIVE=1 \
                 sh "$cdsl_download" --release 0.153.4 || return 1
             _cdsl_probe || return 1
         fi
