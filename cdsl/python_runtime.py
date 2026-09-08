@@ -94,6 +94,11 @@ def ensure_python(script):
         _fail("Python handoff did not start a compatible interpreter. Run this script explicitly with Python 3.11 or later.")
     try:
         saved = _saved_python()
+    except (OSError, ValueError, RuntimeError):
+        # Recovery commands must reach the CLI even when startup metadata is broken.
+        # Discard the saved path and probe independent PATH candidates instead.
+        saved = None
+    try:
         script_path = os.path.abspath(os.fspath(script))
     except (OSError, ValueError, RuntimeError) as error:
         _fail(str(error))

@@ -326,6 +326,7 @@ python3 "$CDSL_DIR/scripts/cdsl.py" doctor
 | Runtime environment | Linux / WSL, Python 3.11 or later, Bash and Git availability, and tmux 3.2 or later |
 | CDSL runtime files | Required Python files exist, can be read, and have valid syntax |
 | Official Codex and startup settings | The official Codex executable path and consistency of CDSL's installation state and shell configuration |
+| Startup artifacts | The dedicated entry, `shell.sh`, metadata, and managed blocks in each Bash startup file; reports missing, damaged, or modified artifacts and the recovery command |
 | Renderer configuration and command | Configuration format and values, and the existence and execute permissions of the first executable in the command |
 
 On WSL, it also reports PowerShell availability for the image clipboard helper as an optional item. PowerShell is not required for the status display.
@@ -349,7 +350,9 @@ python3 "$CDSL_DIR/scripts/cdsl.py" uninstall --codex --dry-run
 python3 "$CDSL_DIR/scripts/cdsl.py" uninstall --codex && hash -r
 ```
 
-`--dry-run` only previews the changes. Uninstallation removes CDSL's managed shell blocks, dedicated entry, and `shell.sh`. The CDSL source directory, rendering settings, backups, official Codex, and installed OS packages are retained. You do not need to source CDSL again after uninstalling it.
+`--dry-run` only previews the changes. Uninstallation removes CDSL's managed shell blocks, dedicated entry, `shell.sh`, and startup metadata. If metadata is missing or damaged, artifacts matching CDSL's generated content can still be removed. Before changing or removing an existing file, CDSL backs it up under `~/.local/share/cdsl/backups/` and prints its actual backup path. It reports that no changes are needed only when no startup artifacts remain; unrecognized content stops the operation with exit code 1.
+
+The CDSL source directory, rendering settings, backups, official Codex, and installed OS packages are retained. You do not need to source CDSL again after uninstalling it.
 
 The final `hash -r` also clears CDSL's cached command location in the current Bash shell. You can then check command resolution:
 
@@ -361,6 +364,20 @@ type -aP codex
 Run `hash -r` in that calling Bash shell. CDSL's Python process cannot clear the parent shell's cache. Opening a new terminal also applies the change.
 
 When the uninstall command can locate official Codex, it prints an absolute path for direct startup. Use that Linux executable if `codex` cannot be found or resolves to another entry, such as a Windows installation on WSL. `hash -r` does not change PATH itself. If no path is printed, use “Finding the official Codex executable” above or reinstall official Codex.
+
+### Recovering from damaged metadata or modified artifacts
+
+If normal uninstallation cannot identify remaining artifacts because metadata is missing or damaged or contents have changed, inspect them with `doctor`, then explicitly use `--purge`.
+
+```bash
+python3 "$CDSL_DIR/scripts/cdsl.py" doctor
+python3 "$CDSL_DIR/scripts/cdsl.py" uninstall --codex --purge --dry-run
+python3 "$CDSL_DIR/scripts/cdsl.py" uninstall --codex --purge && hash -r
+```
+
+`--purge` is never enabled by default. It targets the dedicated entry, `shell.sh`, and startup metadata at their fixed paths for the installing user, plus CDSL's managed blocks in `.bashrc`, `.bash_profile`, `.bash_login`, and `.profile`. Modified contents are removed only after backing up each entire file. Multiple separate blocks can be removed; content outside them is preserved. The operation stops without writing to symlinks, non-regular targets, or blocks whose boundaries cannot be determined because of nested or missing markers.
+
+After recovery, run `install.sh` again using either method above. Rendering settings, source files, and backups are retained during recovery too. Unrelated problems, such as missing packages or errors in existing renderer settings, remain subject to the normal installation checks.
 
 ## Reporting security issues
 
