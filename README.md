@@ -2,38 +2,78 @@
 
 日本語 | [English](README.en.md)
 
-通常の `codex` 起動に、CCSLを基にしたステータス表示を追加します。モデル、Context、Session、Weekly、権限モードを端末の下部5行にまとめます。CDSLは独立した非公式のCodex CLI向けツールです。
-
-以下は表示例です。数値は合成サンプルです。全行の左端に半角スペース2つを付け、閉じ括弧と後続値の間は半角スペース1つです。使用率の数値は最低2桁幅に揃え、`[ 8%]`・`[10%]`・`[100%]`のように表示します。
+通常の`codex`起動に、CCSLを基にしたステータス表示を追加します。モデルとeffort、コンテキスト、利用枠、権限を端末の下部5行にまとめる、非公式のCodex CLI向けツールです。
 
 ![CDSLの表示例：gpt-6-astra(high)、括弧を含むeffortはピンク色](assets/statusline-preview.png)
+
+数値は説明用のサンプルです。
+
+- [呼び出しの仕組み](#呼び出しの仕組み)
+- [インストール](#インストール)：対応環境・自動導入・手動導入
+- [アップデート](#アップデート)
+- [管理操作](#管理操作)：診断・表示の再読み込み・アンインストール・復旧
+- [表示と操作](#表示と操作)：各行の意味・Permissions・スクロール・画像貼り付け
+- [設定と保存先](#設定と保存先)：起動連携・公式Codexのパス・描画のカスタマイズ
+- [プロジェクト情報](#プロジェクト情報)：セキュリティ・ライセンス・Release・配布ファイル
 
 ## 呼び出しの仕組み
 
 ![CDSLの起動、ローカルデータの受け渡し、端末の上下領域](assets/how-it-works.ja.png)
 
-`codex`を実行すると、CDSLの外部ランチャーが公式Codexとステータス表示用の処理を起動します。tmuxが端末を上下に分け、上段にCodex、下段に5行のステータスを配置します。公式Codexの実行ファイルは保持します。
+`codex`を実行すると、CDSLの外部ランチャーが公式Codexとステータス表示用の処理を起動します。tmuxが端末を上下に分け、上段にCodex、下段に5行のCDSLを配置します。公式Codexの実行ファイルは変更しません。
 
-表示用の処理は、現在の会話のローカルログ、Git情報、保存されたキー設定を読み、JSONとして設定済みの描画プログラムへ渡します。返ってきた色付き文字列を下段に表示します。Codexの会話画面とCDSLの表示は、別のプロセスとして動作します。
+CDSLは現在の会話のローカルログ、Git情報、保存されたキー設定を読み、JSONとして描画プログラムへ渡します。返ってきた色付き文字列を下段に表示します。`statusLine.command`はCDSL独自の設定です。検証対象のCodex 0.153.4には、外部コマンドの出力を本体のステータス欄へ埋め込む設定がないため、CDSLが呼び出し役を担います。
 
-`statusLine.command` はCDSLの設定です。Codex 0.153.4には外部コマンドの出力を本体footerへ埋め込む設定がないため、CDSLが呼び出し役を担います。これは非公式の拡張です。
+<details>
+<summary>会話の識別・更新・非対話コマンドの扱い</summary>
 
-通常は1秒ごとに更新します。`/permissions`や権限切替ショートカットの変更直後に記録される`thread_settings_applied`を読み、次のプロンプトを待たずにPermissions行へ反映します。別スレッド所有の設定イベントは取り込みません。起動したプロセスが書き込み中の親会話を追跡し、子エージェントや読み取り用に開かれた履歴を除外します。会話切替中や候補が複数あるときは、別の会話を推測して表示しません。
+通常は1秒ごとに更新します。起動したプロセスが書き込み中の親会話ログを追跡し、子エージェントや読み取り用に開かれた履歴を除外します。会話切替中や候補が複数あるときは、別の会話を推測して表示しません。
 
-`codex exec`、`codex update`、ヘルプ、非TTY実行などは公式Codexへ引数をそのまま渡します。対話セッションでは、Codex標準のstatuslineを起動引数で非表示にします。ユーザーが後から渡した同じ設定の引数が優先されます。
+`/permissions`や権限切替ショートカットの変更後に記録される`thread_settings_applied`を読み、次のプロンプトを待たずにPermissionsへ反映します。別スレッドが所有する設定イベントは取り込みません。
 
-上段のCodex画面は、マウスホイールやトラックパッドで履歴をスクロールできます。履歴表示から入力へ戻るには、最下部までスクロールするか、`q`または`Esc`を押します。下段のCDSLは固定表示です。端末本来の文字選択を使う場合は、端末の設定に応じて`Shift`を押しながらドラッグしてください。
+`codex exec`、`codex update`、ヘルプ、非TTY実行などは公式Codexへ引数をそのまま渡します。対話セッションではCodex標準のstatuslineを起動引数で非表示にしますが、ユーザーが後から渡した同じ設定の引数が優先されます。
 
-## 対応環境
+</details>
 
-- Linux / WSL、BashとGit
-- Python 3.11以上
-- tmux 3.2以上（3.4で検証）
-- 導入・ログイン済みのCodex CLI（0.153.4で検証）
+## インストール
+
+### 対応環境
+
+| 項目 | 要件 |
+|---|---|
+| OS・シェル | Linux / WSL、Bash |
+| Python | 3.11以上 |
+| tmux | 3.2以上（3.2a・3.4で検証） |
+| その他 | Git、導入・ログイン済みのCodex CLI（0.153.4で検証） |
 
 Codexのstandalone版とnpm版に対応します。macOS、Windowsネイティブ版、リモートCodex接続は対象外です。
 
-Ubuntu 24.04またはDebian 12で必要なパッケージが不足している場合は、次を実行します。
+以下の`install.sh`は不足パッケージとLinux版Codexを導入できます。手動で導入する場合は、先に必要なパッケージを用意してください。
+
+### install.shで導入する
+
+`curl`が使える環境で実行します。本体を`~/.local/share/cdsl/source`へ取得し、apt/dnfで不足パッケージを導入します。Linux版Codexがなければ併せて導入します。
+
+**インストールのみ（完了後は新しいBashで起動）**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/takamasa-aiso/cdsl/main/install.sh | sh
+```
+
+**インストールして現在のBashへも反映**
+
+```bash
+(set -o pipefail; curl -fsSL https://raw.githubusercontent.com/takamasa-aiso/cdsl/main/install.sh | sh) && . "$HOME/.config/cdsl/shell.sh"
+```
+
+### 手動で導入する
+
+先に対応環境をそろえ、公式Codexを[公式の導入手順](https://learn.chatgpt.com/docs/codex/cli)でインストールします。以下のPythonコマンドは依存関係を確認し、不足があれば一覧を表示して変更前に停止します。パッケージは自動導入しません。
+
+<details>
+<summary>OS別のパッケージ導入例</summary>
+
+**Ubuntu 24.04 / Debian 12**
 
 ```bash
 sudo apt update
@@ -42,11 +82,13 @@ python3 --version
 tmux -V
 ```
 
-`python3 --version`が3.11以上、`tmux -V`が3.2以上であることを確認してください。標準パッケージは[Ubuntu 24.04ではPython 3.12](https://packages.ubuntu.com/noble/python3)、[Debian 12ではPython 3.11](https://packages.debian.org/bookworm/python3)です。
+`python3`が3.11以上、`tmux`が3.2以上であることを確認します。標準パッケージは[Ubuntu 24.04がPython 3.12](https://packages.ubuntu.com/noble/python3)、[Debian 12がPython 3.11](https://packages.debian.org/bookworm/python3)です。
 
-RHEL系（AlmaLinux、Rocky Linuxなど）では、リリースと利用中のリポジトリに応じてPythonを選びます。次はRHELの公式パッケージに基づく導入例で、CDSLのRHEL実機検証は行っていません。互換ディストリビューションでは、同じパッケージが提供されていることを確認してください。
+**RHEL系（AlmaLinux、Rocky Linuxなど）**
 
-[RHEL 9](https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/9/html/installing_and_using_dynamic_programming_languages/assembly_installing-and-using-python_installing-and-using-dynamic-programming-languages)の標準`python3`は3.9のため、そのままではCDSLの要件を満たしません。RHEL 9.4以降では、追加のPython 3.12を使います。
+以下はRHELの公式パッケージに基づく例です。RHEL実機での全機能検証は行っていません。互換ディストリビューションでは、同じパッケージが提供されていることを確認してください。
+
+[RHEL 9](https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/9/html/installing_and_using_dynamic_programming_languages/assembly_installing-and-using-python_installing-and-using-dynamic-programming-languages)の標準`python3`は3.9です。9.4以降では追加のPython 3.12を使えます。
 
 ```bash
 sudo dnf install git bash tmux python3.12
@@ -54,7 +96,7 @@ python3.12 --version
 tmux -V
 ```
 
-このRHEL 9向け手順では、以降の`python3`を`python3.12`に読み替えてください。自動起動時も、CDSLの導入に使ったPythonを利用します。
+この環境の初回導入コマンドは`python3`を`python3.12`へ読み替えてください。自動起動時も導入に使ったPythonを利用し、OS標準の`python3`を置き換える必要はありません。
 
 [RHEL 10](https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/10/html/installing_and_using_dynamic_programming_languages/installing-and-using-python)は標準のPython 3.12を使えます。
 
@@ -64,31 +106,9 @@ python3 --version
 tmux -V
 ```
 
-対象リリースとPythonのサポート期間は、[RHEL Application Streamsのライフサイクル](https://access.redhat.com/support/policy/updates/rhel-app-streams-life-cycle)で確認できます。
+対象リリースとサポート期間は[RHEL Application Streamsのライフサイクル](https://access.redhat.com/support/policy/updates/rhel-app-streams-life-cycle)を参照してください。
 
-Codexは[公式のCodex CLI導入手順](https://learn.chatgpt.com/docs/codex/cli)でインストールします。CDSLを使う前にログインを済ませてください。未ログインの場合は`codex login`を実行し、[公式の認証手順](https://learn.chatgpt.com/docs/auth)に従います。
-
-## インストール
-
-`curl`が使える環境では、次の2通りで導入できます。本体を`~/.local/share/cdsl/source`へ取得し、apt/dnfで不足パッケージを導入します。Linux版Codexが未導入の場合は併せて導入します。
-
-**1. インストール（完了後は新しいBashで`codex`を実行）**
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/takamasa-aiso/cdsl/main/install.sh | sh
-```
-
-**2. インストールして現在のBashへも反映**
-
-```bash
-(set -o pipefail; curl -fsSL https://raw.githubusercontent.com/takamasa-aiso/cdsl/main/install.sh | sh) && . "$HOME/.config/cdsl/shell.sh"
-```
-
-更新は「[アップデート](#アップデート)」を参照してください。診断・アンインストールは、下記の「管理操作の共通準備」で導入先を指定して実行します。
-
-### 手動で導入する場合
-
-Pythonのインストーラーは、変更前に必要な依存関係をまとめて確認します。不足があれば一覧を表示し、ファイルへ書き込まず停止します。パッケージは自動インストールしません。上記のパッケージ導入コマンドを本人が実行した後、CDSLのインストールをやり直してください。
+</details>
 
 ```bash
 git clone https://github.com/takamasa-aiso/cdsl.git
@@ -101,28 +121,31 @@ python3 scripts/cdsl.py install --codex --dry-run
 python3 scripts/cdsl.py install --codex
 ```
 
-このインストールで起動連携と描画コマンドの設定が完了します。設定ファイルがなければ自動作成されるため、通常の利用では「描画コマンドの設定」の手順を個別に行う必要はありません。既存の描画設定は保持します。
+### 起動する
 
-新しいBashターミナルを開き、通常どおり起動します。
+どちらの導入方法でも起動連携と描画コマンドの設定が完了します。**通常は個別の描画設定が不要です。** 設定ファイルがなければ作成し、既存の描画設定は保持します。本体は取得したフォルダーから動作するため、導入後も削除しないでください。
 
-```bash
-codex
-codex resume
-```
-
-インストール成功後、現在のBashへ反映する場合は次を実行します。同じユーザーで導入した場合、このファイルは両方式で共通です。作業ディレクトリには依存せず、`cd`は不要です。
+現在のBashへまだ反映していない場合は、新しいBashを開くか、次の設定を読み込みます。同じユーザーなら導入方法にかかわらず共通のパスで、`cd`は不要です。
 
 ```bash
 source "$HOME/.config/cdsl/shell.sh"
 ```
 
+通常どおり起動できます。`codex resume`で会話を再開する場合もCDSLが表示されます。
+
+```bash
+codex
+```
+
+未ログインの場合は`codex login`を実行し、[公式の認証手順](https://learn.chatgpt.com/docs/auth)に従ってください。
+
 ## アップデート
 
-アンインストールは不要です。Codexを終了し、導入したユーザーの通常のBashプロンプトで実行してください。既存の描画設定は保持されます。
+アンインストールは不要です。Codexを終了し、導入したユーザーの通常のBashで実行します。既存の描画設定は保持されます。
 
 ### curl経由で導入した場合
 
-インストール時のコマンドを再実行します。既存の`~/.local/share/cdsl/source`を最新版へ更新し、不足パッケージも確認・導入します。現在のBashへ反映した後、Codexを起動します。
+インストーラーを再実行すると、既存の`~/.local/share/cdsl/source`を更新し、不足パッケージも確認・導入します。
 
 ```bash
 (set -o pipefail; curl -fsSL https://raw.githubusercontent.com/takamasa-aiso/cdsl/main/install.sh | sh) &&
@@ -132,7 +155,7 @@ source "$HOME/.config/cdsl/shell.sh"
 
 ### 手動clone・ローカルのinstall.shで導入した場合
 
-`CDSL_DIR`を実際のclone先へ置き換えて実行します。以下は`~/cdsl`の例です。`git -C`と絶対パスで対象を指定するため、`cd`は不要です。手動のインストールコマンドは、不足パッケージがあれば一覧を表示して停止します。「対応環境」の手順で導入してから再実行してください。
+`CDSL_DIR`を実際のclone先へ置き換えてください。以下は`~/cdsl`の例です。`cd`は不要です。不足パッケージが報告された場合は、[手動導入](#手動で導入する)の手順で用意してから再実行します。
 
 ```bash
 CDSL_DIR="$HOME/cdsl"
@@ -143,118 +166,146 @@ git -C "$CDSL_DIR" pull --ff-only &&
   codex
 ```
 
-起動処理やtmux設定の変更（スクロール対応など）を反映するには、更新後にCodexを起動し直してください。`refresh-statusline.py`は下部表示だけを再読み込みするため、これらの変更は反映されません。
+起動処理やtmux設定の変更（スクロール対応など）は、新しく起動したCodexに反映されます。`refresh-statusline.py`による下部表示の再読み込みだけでは反映されません。
 
-### 更新で起動連携を失わない構成
-
-| 場所 | 役割 |
-|---|---|
-| `~/.local/share/cdsl/bin/codex` | CDSL専用の起動入口 |
-| `~/.config/cdsl/shell.sh` | 専用入口をPATHの先頭へ置く設定 |
-| `~/.bashrc` | Bashの対話起動で設定を読み込む管理ブロック |
-| Bashのログイン設定 | `.bash_profile`、`.bash_login`、`.profile` の優先順位で実際に使われるファイルへ管理ブロックを追加 |
-| `~/.config/cdsl/config.toml` | 描画コマンドと更新間隔 |
-| `~/.local/share/cdsl/startup.json` | アンインストール・再設定用の管理情報 |
-
-公式Codexの入口を上書きしないため、公式インストーラーがその入口を作り直してもCDSL専用の入口は残ります。standalone版は `current`、npm版は選択した実行パスを保持し、同じインストール先の更新に追従します。
-
-Nodeのバージョン管理などでCodexのインストール先自体を変えた場合は、`--real-codex` で新しいパスを指定して再登録してください。Codex側のログ形式やCLI仕様が変わった場合はCDSLの対応が必要になることがあります。
-
-シェル設定の既存部分は保持し、CDSLの管理ブロックだけを追加・更新します。変更前のファイルは0600のバックアップへ保存します。管理ブロックが外部で編集されている場合や、編集対象のシェル設定がシンボリックリンクの場合は、上書きせずエラーにします。
+## 管理操作
 
 ### 管理操作の共通準備
 
-導入したユーザーのBashで、次の表から該当する設定を1つ実行します。手動導入の例は`~/cdsl`にcloneした場合です。別の場所なら、実際の絶対パスへ置き換えてください。手元の`install.sh`で導入した場合も、そのCDSLフォルダーを指定します。
+導入したユーザーのBashで、本体の場所を指定します。これ以降の診断・再読み込み・アンインストールは導入方法にかかわらず共通で、`cd`は不要です。
 
 | 導入方法 | 実行する設定 |
 |---|---|
 | curl経由の`install.sh` | `CDSL_DIR="$HOME/.local/share/cdsl/source"` |
-| 手動clone・ローカルの`install.sh` | `CDSL_DIR="$HOME/cdsl"`（例） |
+| 手動clone・ローカルの`install.sh` | `CDSL_DIR="$HOME/cdsl"`（実際のclone先に置き換える） |
 
-以降の管理コマンドはこの変数を使ってスクリプトを絶対パスで指定するため、どのディレクトリからでも実行できます。新しいBashを開いた場合は、変数を設定し直してください。rootと一般ユーザーでは`HOME`が異なるため、導入したユーザーのまま操作します。
+新しいBashでは変数を設定し直してください。rootと一般ユーザーは`HOME`が異なるため、導入したユーザーのまま操作します。診断は本体のファイルも確認するので、実際に導入したフォルダーを指定します。
 
-AlmaLinux 9などで`python3`が3.9のままでも、管理スクリプトは導入時のPythonまたは利用可能なPython 3.11以上へ自動で切り替えます。OSの`python3`を置き換える必要はありません。
+AlmaLinux 9などで`python3`が3.9のままでも、管理スクリプトは導入時のPythonまたは利用可能なPython 3.11以上へ自動で切り替えます。
 
-### 公式Codexのパスを確認する
+### 診断
 
-Codexの場所は導入方法や設定によって異なります。次は一般的な例です。
+```bash
+python3 "$CDSL_DIR/scripts/cdsl.py" doctor
+```
 
-| 導入方法 | 公式Codexの起動入口の例 |
+`doctor`は設定を変更せず、次の項目を`OK`・`NG`と詳細で表示します。導入前にも使えます。
+
+| 診断項目 | 確認内容 |
 |---|---|
-| standalone版 | `~/.local/bin/codex`から`~/.codex/packages/standalone/current/bin/codex`へリンク |
-| npmのグローバル導入 | `<prefix>/bin/codex`（例：`/usr/local/bin/codex`） |
-| nvmで管理するNodeへのnpm導入 | `~/.nvm/versions/node/<version>/bin/codex` |
+| 実行環境 | Linux / WSL、Python 3.11以上、Bash・Git、tmux 3.2以上 |
+| CDSLの実行ファイル | 必要なPythonファイルの存在、読み取り可否、構文 |
+| 公式Codexと起動設定 | 実行パス、管理情報とシェル設定の整合性 |
+| 起動連携の残存物 | 専用入口・`shell.sh`・管理情報・各Bash設定のブロック。問題があれば復旧コマンドも表示 |
+| 描画設定とコマンド | 設定形式・値、コマンド先頭の実行ファイルと実行権限 |
 
-LinuxのBashでは、次のコマンドで実際の候補を確認できます。`type -a`は関数やエイリアスも含め、`type -aP`はPATH上の実行ファイルを表示します。
+WSLではPowerShellの有無も任意項目として表示します。Codexのログイン状態、描画コマンドの実行結果、会話・利用量の取得、画像貼り付けの動作は診断しません。`OK`は事前確認を通過した意味で、全機能の動作確認を保証しません。
+
+### 表示の再読み込み
+
+実行中のCodexセッション内で、下部のCDSL表示だけを再読み込みできます。
+
+```bash
+python3 "$CDSL_DIR/scripts/refresh-statusline.py"
+```
+
+### アンインストール
+
+Codexを終了し、導入したユーザーの通常のBashで実行します。
+
+```bash
+python3 "$CDSL_DIR/scripts/cdsl.py" uninstall --codex --dry-run
+python3 "$CDSL_DIR/scripts/cdsl.py" uninstall --codex && hash -r
+```
+
+`--dry-run`は変更予定の確認だけです。管理ブロック・専用入口・`shell.sh`・管理情報を除去し、変更・削除の前に`~/.local/share/cdsl/backups/`へ退避して保存先を表示します。管理情報が欠落・破損していても、CDSLの生成内容と一致する残存物は除去します。残存物がなければ変更不要と表示し、識別できない内容があれば終了コード1で停止します。
+
+本体フォルダー、描画設定、バックアップ、公式Codex、導入済みOSパッケージは保持します。アンインストール後に`source`でCDSLを読み込み直す必要はありません。
+
+`hash -r`は、現在のBashに保存されたコマンド位置を消します。Pythonの子プロセスから親Bashのキャッシュは消せないため、上記のように同じBashで実行します。新しいターミナルを開く方法でも反映できます。
 
 ```bash
 type -a codex
 type -aP codex
 ```
 
-npm版の`<prefix>`は、次の出力で確認します。
+`hash -r`はPATH自体を変更しません。`codex`が見つからない場合や、WSLでWindows版が選ばれる場合は、アンインストール結果に表示されたLinux版の絶対パスを使います。パスが表示されなければ[公式Codexのパスを確認する](#公式codexのパスを確認する)を参照するか、公式Codexを再インストールしてください。
+
+### 管理情報の破損・変更された残存物からの復旧
+
+通常のアンインストールが識別できない残存物で停止した場合は、`doctor`で確認し、明示的に`--purge`を指定します。
 
 ```bash
-npm prefix -g
+python3 "$CDSL_DIR/scripts/cdsl.py" doctor
+python3 "$CDSL_DIR/scripts/cdsl.py" uninstall --codex --purge --dry-run
+python3 "$CDSL_DIR/scripts/cdsl.py" uninstall --codex --purge && hash -r
 ```
 
-候補のリンク先を調べる場合は、実際のパスに置き換えて次を実行します。
+`--purge`は既定では無効です。対象は固定パスの専用入口・`shell.sh`・管理情報と、`.bashrc`・`.bash_profile`・`.bash_login`・`.profile`内のCDSL管理ブロックです。変更された内容もファイル全体をバックアップしてから除去し、独立した複数ブロックも扱います。ブロック外の内容は保持します。
 
-```bash
-readlink -f "$HOME/.local/bin/codex"
-```
+シンボリックリンクや通常ファイル以外の対象、マーカーの入れ子・欠落などで範囲を確定できないブロックには書き込まず停止します。保持するファイルは通常のアンインストールと同じです。復旧後は`install.sh`を再実行できますが、パッケージ不足や既存の描画設定エラーは別途解消する必要があります。
 
-CDSL導入後は、専用の`~/.local/share/cdsl/bin/codex`が検索結果の先頭になることがあります。これは`--real-codex`に指定せず、上の候補から公式Codexの起動入口を選んでください。`readlink`で表示される版ごとの内部パスではなく、更新後も同じ場所にある起動入口を指定すると、Codexの更新に追従できます。
+## 表示と操作
 
-CDSLはstandalone版の`current`を優先し、見つからない場合はPATHから探します。必要に応じて、導入時に公式の実行ファイルを明示できます。
-
-```bash
-python3 "$CDSL_DIR/scripts/cdsl.py" install --codex --real-codex "$HOME/.local/bin/codex"
-```
-
-上はstandalone版の一般的なパスを使う例です。異なる場所にある場合は、確認した公式Codexの起動入口へ置き換えてください。
-
-CDSLはcloneしたフォルダーから動作します。導入後もこのフォルダーを保持してください。場所を移した場合は、新しい場所からインストールを再実行し、描画設定の `command` も新しい絶対パスへ変更してください。既存の描画設定は自動では上書きしません。
-
-## 表示の意味
+### 表示の意味
 
 | 行 | 表示内容 |
 |---|---|
-| ヘッダー | モデルと取得できる場合はeffort、作業ディレクトリ、取得できる場合はGitブランチと変更数 |
+| ヘッダー | モデルとeffort、作業ディレクトリ、取得できる場合はGitブランチと変更数 |
 | Context | 現在の会話のコンテキスト使用率、使用トークン数、上限、キャッシュ率 |
 | Session | アカウントの5時間枠の使用率、対象会話の累計トークン数 |
 | Weekly | アカウントの週次枠の使用率とリセットまでの時間 |
 | Permissions | 現在の会話に適用された権限の範囲と承認方針 |
 
-モデルは`[gpt-6-astra(max)]`のように表示します。括弧を含むeffort部分は、Sessionグラフの最も高い棒と同じピンク色で表示します。effortは現在の会話ログと設定変更イベントから取得し、取得できない場合はモデル名だけを表示します。グローバル設定からの推測は行いません。モデル・effortの変更がログへ記録されると、通常1秒の更新周期で追従します。
+モデルは`[gpt-6-astra(high)]`のように表示し、括弧を含むeffortをSessionグラフの高い棒と同じピンク色にします。effortは現在の会話ログ・設定変更イベントから取得し、不明ならモデル名だけを表示します。グローバル設定から推測せず、変更がログへ記録されると通常1秒周期で追従します。
 
-Session / Weeklyの使用率はアカウントの値です。グラフは**対象会話内のトークン消費履歴**であり、アカウント全体の全会話を合算したグラフではありません。
+全行の左端は半角スペース2つ、使用率の閉じ括弧と後続値の間は半角スペース1つです。使用率は最低2桁幅で、`[ 8%]`・`[10%]`・`[100%]`のように表示します。時刻・時間帯は日本標準時（JST、UTC+09:00）です。
 
-縦棒の高さは各時間帯の消費量を表し、集計範囲の最小値と最大値に合わせて相対表示します。リセット時刻が取得できた場合は、その利用期間を描きます。Sessionが`N/A`などでリセット時刻がない場合は、現在から過去5時間の範囲を描き直します。時間経過で集計区間の境界が移動し、区間から最大値が外れると縮尺も変わるため、新しい消費がなくても棒の位置や高さが変わります。残量や経過時間そのものを示す棒ではありません。
+### 利用枠とグラフの読み方
 
-利用枠は `window_minutes` で判定します。返却された利用枠に5時間枠がない場合は、Sessionの使用率を `[N/A]` とし、取得できた会話のトークン数を表示します。週次枠がAPIの `primary` に入っている場合もWeeklyへ表示します。
+**Session / Weeklyの使用率はアカウントの値、グラフは対象会話内のトークン消費履歴です。** 他の会話を合算したグラフではありません。利用量はAPIへ直接問い合わせず、Codexのローカルログから取得します。
 
-5時間枠が再び提供され、`window_minutes = 300`の使用率と有効なリセット時刻が現在の会話ログに記録されると、Sessionは`[N/A]`から使用率へ自動で切り替わります。再インストールや手動設定は不要です。CDSLは利用枠をAPIへ直接問い合わせず、Codexのログを既定1秒の周期で読み取るため、ログが更新されるまでは復活を検知できません。
+| 表示 | 意味 |
+|---|---|
+| パーセンテージ | 取得できた使用率 |
+| `[N/A]` | 返却された利用枠に対象の期間が含まれない |
+| `[---]` | 使用率が未取得、または記録された利用期間が期限切れ |
+| `Permissions: unknown` | 権限情報が未取得、または未対応 |
+| 待機表示 | 対象会話を一意に特定できない |
 
-狭い端末ではラベルやグラフを短縮します。Context・Session・Weeklyの使用率が未取得・期限切れなら `[---]`、権限情報がまだなければ `Permissions: unknown`、対象会話を一意に特定できなければ待機表示になります。
+利用枠は`window_minutes`で判定します。5時間枠がなければSessionを`[N/A]`とし、取得できた会話のトークン数を表示します。週次枠がAPIの`primary`に入っている場合もWeeklyへ表示します。
 
-`TERM=xterm`かつ`COLORTERM`未指定などの端末では、幅が一定のASCIIグラフと基本色による互換表示になります（Permissionsは黄色）。`CDSL_RENDER_MODE=ascii codex`で互換表示、`CDSL_RENDER_MODE=unicode codex`で通常表示を明示できます。
+5時間枠の使用率と有効なリセット時刻が`window_minutes = 300`で現在の会話ログへ記録されると、Sessionは自動でパーセンテージ表示に戻ります。再インストールは不要ですが、ログ更新前には検知できません。
 
-時刻・時間帯は日本標準時（JST、UTC+09:00）で表示します。
+<details>
+<summary>消費がなくても棒グラフが動く理由</summary>
 
-## Permissionsの表示と切替
+縦棒は各時間帯の消費量を、表示範囲の最小値と最大値に合わせて相対表示します。リセット時刻が取得できた場合はその利用期間を描き、Sessionが`N/A`などで時刻がなければ現在から過去5時間を描きます。
 
-`Permissions: 権限の範囲 | 承認方針` の順に表示します。通常表示の`Permissions:`ラベルはClaude Codeの標準ダークテーマのwarning色（`#FFC107`）です。値の横に半角スペース1つを挟み、先頭に設定されたショートカットを表示します。
+時間経過で集計区間の境界が移動し、区間から最大値が外れると縮尺も変わるため、新しい消費がなくても棒の位置や高さが変わります。残量や経過時間そのものを表す棒ではありません。
+
+</details>
+
+### Permissionsの表示と切替
+
+`Permissions: 権限の範囲 | 承認方針`の順に表示します。通常表示のラベルはClaude Codeの標準ダークテーマのwarning色（`#FFC107`）です。値の横に半角スペース1つを挟み、設定された先頭のショートカットを表示します。
 
 | ショートカットの状態 | ヒント |
 |---|---|
-| 設定済み（`F7`を割り当てた例） | `(F7 for cycle)` |
+| 設定済み（F7の例） | `(F7 for cycle)` |
 | 未割当 | `(/keymap to set cycle key)` |
 | 設定を判定できない | `(/keymap to check cycle key)` |
 
-CDSLは`$CODEX_HOME/config.toml`（通常は`~/.codex/config.toml`）に保存されたユーザーのキー設定を読みます。`--profile <name>`で起動した場合は、同じディレクトリの`<name>.config.toml`も読みます。プロジェクト・システム・コマンドラインの設定に同じアクションの定義がある場合や、保存設定を確実に読み取れない場合は、キー名の代わりに確認用のヒントを表示します。
+Codexの`/keymap`で`next_permission_mode`にキーを割り当て、メニューを閉じて入力欄で押すと切り替えられます。検証対象の[Codex 0.153.4](https://github.com/openai/codex/releases/tag/rust-v0.153.4)では初期状態で未割当です。実行中の画面では、利用可能なRead Only・Ask for approval・Approve for meを巡回します。**Full Accessは巡回対象外なので、`/permissions`で選択します。** これは実行中の切替の説明で、`--yolo`などの起動オプションとは別です。
 
-`Never`は実行時の承認を求めない設定です。許可された範囲内で実行し、承認が必要な操作は確認画面を出さず拒否します。権限の範囲は別の設定なので、`Read Only | Never`なら読み取り専用、`Full Access | Never`ならCodexのサンドボックス制限なし・承認要求なしという意味です。
+変更は現在の会話だけに適用され、CDSLは通常1秒周期で反映します。`/permissions`からの変更も同様で、次のプロンプト送信は不要です。候補と確認処理はCodex本体に従います。実行中のキー変更は`/keymap`で行い、設定ファイルの直接編集が即座に反映されるとは限らない点に注意してください。
+
+`Never`は実行時の承認を求めず、承認が必要な操作を拒否する方針です。権限の範囲とは別なので、`Read Only | Never`は読み取り専用、`Full Access | Never`はCodexのサンドボックス制限なし・承認要求なしを意味します。
+
+自動審査で人への確認を減らす使い方では、`Approve for me`がClaude Codeの`auto`モードに最も近い選択肢です。どちらも審査で操作を拒否できますが、Codexはサンドボックスを維持して承認が必要な操作を審査役へ送り、Claude Codeは独自の分類モデルとルールで判定します。実用上の対応づけであり、同じ仕組みではありません。[Codex Auto-review](https://learn.chatgpt.com/docs/sandboxing/auto-review)、[Claude Code auto mode](https://code.claude.com/docs/en/permission-modes#eliminate-permission-prompts-with-auto-mode)を参照してください。
+
+<details>
+<summary>権限の範囲・承認方針の一覧</summary>
 
 | 権限の範囲 | 意味 |
 |---|---|
@@ -263,36 +314,103 @@ CDSLは`$CODEX_HOME/config.toml`（通常は`~/.codex/config.toml`）に保存�
 | `Full Access` | Codexのサンドボックス制限なし。OSや組織側の制約は別途適用される |
 | `Custom permissions` | 組み込みの表示名に当てはまらない権限設定 |
 | プロファイル名 | 名前付きの独自プロファイルを使用中。その名前を表示 |
-| `unknown` | 有効な権限情報をまだ取得できていない |
+| `unknown` | 有効な権限情報が未取得 |
 
 | 承認方針 | 意味 |
 |---|---|
 | `Ask for approval` | Codexが必要と判断した承認をユーザーへ求める |
-| `Approve for me` | 承認が必要な操作を自動レビューへ送る。レビューで拒否される場合もある |
+| `Approve for me` | 承認が必要な操作を自動レビューへ送る。拒否される場合もある |
 | `Never` | 実行時の承認を求めない。承認が必要な操作は拒否する |
-| `On request` | 必要時に承認を求める設定だが、承認先がログから不明 |
+| `On request` | 必要時に承認を求めるが、承認先がログから不明 |
 | `Untrusted` | 既知の安全なコマンド以外は承認が必要 |
-| `Granular` | 承認の種類ごとに、要求を許可するか自動拒否するかを設定 |
-| `On failure` | サンドボックス内での失敗後に、制限外での再実行の承認を求める旧設定。Codexでは非推奨 |
-| `unknown` | 承認方針を取得できていない、または未対応の方針 |
+| `Granular` | 承認の種類ごとに要求の許可・自動拒否を設定 |
+| `On failure` | サンドボックス内での失敗後、制限外での再実行の承認を求める旧設定。Codexでは非推奨 |
+| `unknown` | 承認方針が未取得、または未対応 |
 
-自動審査で人への確認を減らす使い方では、`Approve for me`がClaude Codeの`auto`モードに最も近い選択肢です。どちらも審査で操作を拒否できます。Codexはサンドボックスを維持し、承認が必要な操作を審査役へ送ります。Claude Codeは独自の分類モデルとルールで判定します。これは実用上の対応づけであり、仕組みやルールが完全に同じという意味ではありません。[Codex Auto-review](https://learn.chatgpt.com/docs/sandboxing/auto-review)、[Claude Code auto mode](https://code.claude.com/docs/en/permission-modes#eliminate-permission-prompts-with-auto-mode)を参照してください。
+表示は会話ログの実効設定を短く表したものです。個別の許可パスやルールはCodexの`/permissions`・`/status`で確認してください。
 
-これらは会話ログの実効設定を短く表したものです。個別の許可パスやルールはCodexの`/permissions`・`/status`で確認できます。狭い端末では`Permissions:`を`P:`、`Custom permissions`を`Custom`、`Ask for approval`を`Ask`、`Approve for me`を`Auto review`へ短縮します。ヒントも`(F7)`・`(set /keymap)`・`(check /keymap)`へ短縮し、必要なら権限の値を省略してヒントを残します。極端に狭い場合はヒントも省略します。
+</details>
 
-Codexの`/keymap`で`next_permission_mode`にキーを割り当て、メニューを閉じてCodexの入力欄で押すと権限を切り替えられます。Codex 0.153.4では初期状態で未割当です。変更が適用されるとCDSLも通常1秒の更新周期で追従し、次のプロンプト送信は不要です。`/permissions`での変更も同様です。
+<details>
+<summary>キー設定の取得元と狭い端末での表示</summary>
 
-実行中のCodexのショートカットは`/keymap`から変更してください。設定ファイルを直接編集しても、現在のCodex画面へキー割り当てが即座に再読込されるとは限りません。
+`$CODEX_HOME/config.toml`（通常は`~/.codex/config.toml`）を読みます。`--profile <name>`で起動した場合は、同じディレクトリの`<name>.config.toml`も読みます。プロジェクト・システム・コマンドラインに同じアクションの定義がある場合や、保存設定を確実に読み取れない場合は、キー名の代わりに確認用ヒントを出します。
 
-2026-09-07（JST）時点の最新安定版は[Codex CLI 0.153.4](https://github.com/openai/codex/releases/tag/rust-v0.153.4)です。この版の実行中の画面では、`next_permission_mode`は利用可能なRead Only・Ask for approval・Approve for meを巡回します。Full Accessは巡回対象外なので、`/permissions`で選択してください。これは実行中の画面での切替についての説明であり、`--yolo`などの起動オプションとは別です。
+狭い端末ではラベル・グラフを短縮します。`Permissions:`は`P:`、`Custom permissions`は`Custom`、`Ask for approval`は`Ask`、`Approve for me`は`Auto review`になります。ヒントも`(F7)`・`(set /keymap)`・`(check /keymap)`へ短縮し、必要なら権限の値を省略してヒントを残します。極端に狭い場合はヒントも省略します。
 
-切替の候補と確認処理はCodex本体に従います。ショートカットはメニューやポップアップを閉じてから操作します。ショートカットによる変更は現在の会話だけに適用されます。
+</details>
 
-## 描画コマンドの設定（カスタマイズする場合のみ）
+### スクロールと文字選択
 
-**インストール手順を実施すれば、個別の設定は不要です。** `install --codex`が、設定ファイルのない場合に`~/.config/cdsl/config.toml`を自動作成し、導入に使ったPythonと付属の描画スクリプトの絶対パスを登録します。既存の設定は上書きしません。
+上段のCodex画面はマウスホイールやトラックパッドで履歴をスクロールできます。最下部まで戻すか`q`・`Esc`を押すと通常入力へ戻ります。下段のCDSLは固定表示です。端末本来の文字選択を使う場合は、端末の設定に応じて`Shift`を押しながらドラッグしてください。
 
-以下は描画プログラムや更新間隔を変更する場合の参考例です。通常の導入時にコピー・実行する必要はありません。
+### 画像の貼り付け
+
+画像をコピーし、入力欄で`Ctrl+v`を押します。環境によっては`Alt+v`で貼り付けられる場合もあります。クリップボードが使えなければ、ローカルファイルへ保存した画像のパスを入力欄に貼り付け、画像として添付されたことを確認して送信します。
+
+Codex 0.153.4には標準の代替キー`Ctrl+Alt+v`もあります。画像貼り付けキーは固定で、`/keymap`の編集対象ではありません。[Codexのキー定義](https://github.com/openai/codex/blob/rust-v0.153.4/codex-rs/tui/src/keymap.rs#L2164)
+
+キーが届かない場合は、`/keymap`の`Debug`タブで`Inspect keypresses`を選び、Enterを押して確認できます。`Ctrl+c`で終了します。端末側の割当も確認してください。[Codexのキー検査画面](https://github.com/openai/codex/blob/rust-v0.153.4/codex-rs/tui/src/keymap_setup/picker.rs#L312)
+
+WSLでは`Ctrl+v`にCDSLのWindowsクリップボード補助が入り、利用できるWindows PowerShellでPNGへ変換して添付します。取得できなければCodex標準処理へ戻ります。
+
+### 端末の互換表示
+
+`TERM=xterm`かつ`COLORTERM`未指定などの端末では、幅が一定のASCIIグラフと基本色を使います（Permissionsは黄色）。`CDSL_RENDER_MODE=ascii codex`で互換表示、`CDSL_RENDER_MODE=unicode codex`で通常表示を明示できます。
+
+## 設定と保存先
+
+### 保存先と起動連携
+
+| 場所 | 役割 |
+|---|---|
+| `~/.local/share/cdsl/bin/codex` | CDSL専用の起動入口 |
+| `~/.config/cdsl/shell.sh` | 専用入口をPATHの先頭へ置く設定 |
+| `~/.bashrc` | Bashの対話起動で読み込む管理ブロック |
+| Bashのログイン設定 | `.bash_profile`、`.bash_login`、`.profile`の優先順位で使われるファイルへ管理ブロックを追加 |
+| `~/.config/cdsl/config.toml` | 描画コマンドと更新間隔 |
+| `~/.local/share/cdsl/startup.json` | アンインストール・再設定用の管理情報 |
+| `~/.local/share/cdsl/backups/` | 変更前のファイルを0600で保存 |
+
+公式Codexの入口を上書きしないため、公式インストーラーがその入口を作り直してもCDSLの入口は残ります。standalone版は`current`、npm版は選択した実行パスを保持し、同じ場所の更新に追従します。Codexのログ形式やCLI仕様が変わる場合はCDSL側の対応が必要です。
+
+シェル設定の既存部分は保持し、CDSLの管理ブロックだけを追加・更新します。外部で変更されたブロックやシンボリックリンクのシェル設定は、上書きせずエラーにします。
+
+### 公式Codexのパスを確認する
+
+| 導入方法 | 起動入口の例 |
+|---|---|
+| standalone版 | `~/.local/bin/codex`から`~/.codex/packages/standalone/current/bin/codex`へリンク |
+| npmグローバル導入 | `<prefix>/bin/codex`（例：`/usr/local/bin/codex`） |
+| nvmで管理するNodeへのnpm導入 | `~/.nvm/versions/node/<version>/bin/codex` |
+
+CDSLはstandalone版の`current`を優先し、見つからなければPATHから探します。次のコマンドは、関数・エイリアスを含む候補と、PATH上の実行ファイルをそれぞれ表示します。
+
+```bash
+type -a codex
+type -aP codex
+```
+
+npmの`<prefix>`と、standalone版のリンク先は次で確認できます。`readlink`のパスは実際の候補へ置き換えてください。
+
+```bash
+npm prefix -g
+readlink -f "$HOME/.local/bin/codex"
+```
+
+`--real-codex`へはCDSL専用入口を指定せず、公式Codexの起動入口を指定します。版ごとの内部パスより、更新後も同じ場所にある入口を選びます。Nodeのバージョン変更などでCodexの場所が変わったときも再登録してください。
+
+[管理操作の共通準備](#管理操作の共通準備)で`CDSL_DIR`を設定したうえで実行します。
+
+```bash
+python3 "$CDSL_DIR/scripts/cdsl.py" install --codex --real-codex "$HOME/.local/bin/codex"
+```
+
+CDSL本体のフォルダーを移した場合は、新しい場所からインストールを再実行し、描画設定の`command`も新しい絶対パスへ変更します。既存の描画設定は自動では上書きしません。
+
+### 描画コマンドの設定（カスタマイズする場合のみ）
+
+通常の導入で設定は完了します。以下は描画プログラムや更新間隔を変更する場合だけの参考例です。Pythonと本体のパスは環境に合わせて置き換えます。
 
 ```toml
 [statusLine]
@@ -301,9 +419,12 @@ timeout_seconds = 2.0
 refresh_interval = 1.0
 ```
 
-例のPythonとclone先のパスは環境によって異なります。別の設定ファイルを使う場合は、そのファイルを用意して `CDSL_CONFIG` にパスを指定してください。指定先は自動作成されません。`command` はシェルを介さず引数配列で実行するため、`~`、変数、パイプなどのシェル展開は使えません。
+設定は`~/.config/cdsl/config.toml`です。別のファイルを使う場合は、用意したパスを`CDSL_CONFIG`へ指定します。指定先は自動作成されません。`command`はシェルを介さない引数配列なので、`~`・変数・パイプなどは展開されません。
 
-入出力はCDSLのバージョン1プロトコルです。標準入力へ次のJSONを渡し、描画コマンドはUTF-8のANSI文字列を標準出力へ返します。
+<details>
+<summary>独自の描画プログラム向けJSONプロトコル</summary>
+
+バージョン1のJSONを標準入力へ渡し、UTF-8のANSI文字列を標準出力から受け取ります。
 
 ```json
 {
@@ -320,109 +441,36 @@ refresh_interval = 1.0
 }
 ```
 
-`session` には連携側で正規化した使用量・Git・権限情報が入ります。`session.now` は描画時刻で、既定の描画プログラムはログや時計を独自に読みません。`terminal.rows` はJSONプロトコルの画面情報です。既定の描画は常に5行です。
+`session`には正規化した使用量・Git・権限情報が入ります。`session.now`は描画時刻で、既定の描画プログラムはログや時計を独自に読みません。`terminal.rows`はプロトコル上の画面情報で、既定の描画は常に5行です。
 
-標準出力と標準エラーの上限はそれぞれ64KiBです。タイムアウトや実行失敗は表示領域に通知し、Codexの操作を継続できます。
+標準出力・標準エラーの上限はそれぞれ64KiBです。タイムアウトや実行失敗は表示領域へ通知し、Codexの操作を継続できます。
 
-## 画像の貼り付け
+</details>
 
-画像をコピーし、Codexの入力欄で`Ctrl+v`を押します。環境によっては、`Ctrl+v`が効かず`Alt+v`で貼り付けられる場合もあります。
+## プロジェクト情報
 
-Codex 0.153.4には、標準の代替キーとして`Ctrl+Alt+v`もあります。標準の画像貼り付けキーは固定で、`/keymap`の編集項目には含まれません。[Codexのキー定義](https://github.com/openai/codex/blob/rust-v0.153.4/codex-rs/tui/src/keymap.rs#L2164)
+### セキュリティとライセンス
 
-実際に届くキーは、`/keymap`の`Debug`タブで`Inspect keypresses`を選び、Enterを押してから確認できます。`Ctrl+c`で確認画面を終了します。キーが届かなければ端末側の割当を確認してください。[Codexのキー検査画面](https://github.com/openai/codex/blob/rust-v0.153.4/codex-rs/tui/src/keymap_setup/picker.rs#L312)
+セキュリティ上の問題は[GitHubの非公開報告](https://github.com/takamasa-aiso/cdsl/security/advisories/new)から連絡してください。詳細は[SECURITY.md](SECURITY.md)を参照してください。
 
-クリップボードを使えない場合は、画像をローカルファイルへ保存し、そのパスを入力欄へ貼り付けて添付できます。画像として添付されたことを確認してから、プロンプトを送信してください。
+著作権表示とMITライセンス条件は[LICENSE](LICENSE)、CCSL由来の部分・出典・元の著作権表示とライセンス条件は[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)に記載しています。CDSLはOpenAIやCCSL作者による公式提供・推奨を示すものではありません。
 
-WSLでは、`Ctrl+v`にCDSLのWindowsクリップボード補助が入り、利用できるWindows PowerShellで画像をPNGへ変換して添付します（取得できなければCodex標準処理へ戻ります）。
+### Releaseの記載ルール
 
-## 診断・アンインストール
+[GitHub Releases](https://github.com/takamasa-aiso/cdsl/releases)には、バージョンごとに次の項目を日本語・英語の順で記載します。
 
-導入方法にかかわらず、以下の手順を共通で使えます。先に「管理操作の共通準備」で`CDSL_DIR`を設定してください。本体の配置先が異なっていても、同じユーザーのCDSL起動連携と管理情報を対象にします。診断は指定した本体のファイルも確認するため、実際に導入したフォルダーを選びます。
-
-### 診断
-
-```bash
-python3 "$CDSL_DIR/scripts/cdsl.py" doctor
-```
-
-`doctor`は、インストール時と同じ事前確認を行い、項目ごとに`OK`・`NG`と問題の詳細を表示します。設定の変更や自動修復は行わず、導入前にも使えます。
-
-| 診断項目 | 確認内容 |
+| 項目 | 内容 |
 |---|---|
-| 実行環境 | Linux / WSL、Python 3.11以上、Bash・Gitの有無、tmux 3.2以上 |
-| CDSLの実行ファイル | 必要なPythonファイルの存在、読み取り可否、構文エラーの有無 |
-| 公式Codexと起動設定 | 公式Codexの実行パス、CDSLの管理情報とシェル設定の整合性 |
-| 起動連携の残存物 | 専用入口・`shell.sh`・管理情報・各Bash設定ファイルの管理ブロックを個別に調べ、欠落・破損・変更と復旧コマンドを表示 |
-| 描画設定とコマンド | 設定ファイルの形式・設定値、コマンド先頭の実行ファイルの有無と実行権限 |
+| 変更内容 / Changes | 前のReleaseからの追加・修正・利用者への影響。初回は主な機能 |
+| 対応するCodexのバージョン / Codex compatibility | 実際に動作確認した版。未検証の版を対応済みとしない |
+| 既知の制限 / Known limitations | 環境、データ取得・表示・性能、未解決の問題と回避策。なければその旨 |
 
-WSLでは、画像貼り付け補助に使うPowerShellの有無も任意項目として表示します。これはステータス表示の必須条件ではありません。
+各Releaseは公開するコミットにタグを付け、その版の状態を記載します。変更履歴はReleaseにまとめ、このREADMEには現在の仕様と利用方法を記載します。
 
-Codexのログイン状態、描画コマンドの実行結果、会話・利用量の取得、画像貼り付けの動作は診断しません。`OK`は上記の事前確認を通過したことを示し、インストール完了や全機能の動作確認を意味するものではありません。
+### 配布ファイルと参考資料
 
-### 表示の再読み込み
-
-実行中のCDSL下部表示だけを再読み込みする場合は、そのCodexセッション内から次を実行できます。
-
-```bash
-python3 "$CDSL_DIR/scripts/refresh-statusline.py"
-```
-
-### アンインストール
-
-Codexを終了し、導入したユーザーの通常のBashプロンプトで実行します。
-
-```bash
-python3 "$CDSL_DIR/scripts/cdsl.py" uninstall --codex --dry-run
-python3 "$CDSL_DIR/scripts/cdsl.py" uninstall --codex && hash -r
-```
-
-`--dry-run`は変更予定の確認だけを行います。アンインストールすると、管理ブロック・専用入口・`shell.sh`・管理情報を除去します。管理情報が欠落・破損していても、CDSLの生成内容と一致する残存物は除去します。既存ファイルを変更・削除する前に`~/.local/share/cdsl/backups/`へ退避し、実際の退避先を表示します。残存物がない場合は変更不要と表示し、識別できない内容が残る場合は終了コード1で停止します。
-
-CDSL本体のフォルダー、描画設定、バックアップ、公式Codex、導入済みOSパッケージは残します。アンインストール後は`source`でCDSLを読み込み直す必要はありません。
-
-末尾の`hash -r`で、現在のBashに保存されたCDSLのコマンド位置も消します。その後、解決先を確認できます。
-
-```bash
-type -a codex
-type -aP codex
-```
-
-`hash -r`は呼び出し元のBashで実行する必要があり、CDSLのPythonプロセスからそのキャッシュを消すことはできません。新しいターミナルを開く方法でも反映できます。
-
-公式Codexを検出できた場合は、アンインストールコマンドが直接起動用の絶対パスを表示します。`codex`が見つからない場合や、WSLでWindows版など別の入口が選ばれる場合は、表示されたLinux版の絶対パスを実行してください。`hash -r`はPATH自体を変更しません。パスも表示されない場合は、上の「公式Codexのパスを確認する」で場所を調べるか、公式Codexを再インストールしてください。
-
-### 管理情報の破損・変更された残存物からの復旧
-
-管理情報の欠落・破損や内容の変更で通常のアンインストールが残存物を識別できず停止した場合は、`doctor`で状態を確認してから、明示的に`--purge`を指定します。
-
-```bash
-python3 "$CDSL_DIR/scripts/cdsl.py" doctor
-python3 "$CDSL_DIR/scripts/cdsl.py" uninstall --codex --purge --dry-run
-python3 "$CDSL_DIR/scripts/cdsl.py" uninstall --codex --purge && hash -r
-```
-
-`--purge`は通常動作には含まれません。対象は導入ユーザーの固定パスにある専用入口・`shell.sh`・管理情報と、`.bashrc`・`.bash_profile`・`.bash_login`・`.profile`内のCDSL管理ブロックです。内容が変更されていても、変更前のファイル全体をバックアップしてから除去します。独立した複数のブロックも対象にし、ブロック外の内容は保持します。シンボリックリンクや通常ファイル以外の対象、マーカーの入れ子・欠落などで範囲を確定できないブロックには書き込まず停止します。
-
-復旧完了後は上記の`install.sh`を再実行できます。描画設定・本体・バックアップはこの操作でも保持されます。パッケージ不足や既存の描画設定エラーなど、起動連携以外の問題は通常の導入時の確認対象です。
-
-## セキュリティ上の問題の報告
-
-セキュリティ上の問題は[GitHubの非公開報告](https://github.com/takamasa-aiso/cdsl/security/advisories/new)から連絡してください。報告に含める情報と注意点は[SECURITY.md](SECURITY.md)に記載しています。
-
-## Releaseの記載ルール
-
-[GitHub Releases](https://github.com/takamasa-aiso/cdsl/releases)には、CDSLのバージョンごとに次の3項目を記載します。日本語を先に記載し、英語も併記します。
-
-| 項目 | 記載する内容 |
-|---|---|
-| 変更内容 / Changes | 前のReleaseからの追加・修正・利用者に影響する変更。初回は提供する主な機能 |
-| 対応するCodexのバージョン / Codex compatibility | 実際に動作確認したCodex CLIのバージョン。未検証の版を対応済みとしない |
-| 既知の制限 / Known limitations | 対応環境、データ取得・表示・性能の制約、未解決の問題と回避策。該当がなければその旨 |
-
-各Releaseは公開するコミットにタグを付け、記載内容をその版の状態に合わせます。変更履歴はReleaseにまとめ、このREADMEには現在の仕様と利用方法を記載します。
-
-## 配布ファイル
+<details>
+<summary>リポジトリ内のファイル一覧</summary>
 
 | 場所 | 用途 |
 |---|---|
@@ -430,22 +478,20 @@ python3 "$CDSL_DIR/scripts/cdsl.py" uninstall --codex --purge && hash -r
 | `install.sh` | 本体の取得と導入の入口 |
 | `scripts/setup.sh` | Bashによる依存導入とCDSL設定 |
 | `scripts/cdsl.py` | 導入・診断・アンインストールと起動処理の入口 |
-| `scripts/statusline.py` | JSONを表示用の色付き文字列へ変換 |
-| `scripts/paste-image.py` | WSLクリップボード補助の入口 |
-| `scripts/refresh-statusline.py` | 実行中の下部表示だけを再読込 |
+| `scripts/statusline.py` | JSONを色付き文字列へ変換 |
+| `scripts/paste-image.py` | WSLクリップボード補助 |
+| `scripts/refresh-statusline.py` | 実行中の下部表示の再読み込み |
 | `assets/statusline-preview.png` | 現行CDSLで描画した表示例 |
-| `assets/how-it-works.ja.png` | 起動、ローカルデータの流れ、端末の上下領域を示す日本語の図 |
-| `assets/how-it-works.svg` | 同じ仕組みを示す英語の図 |
-| `README.md`・`README.en.md` | 日本語・英語の利用方法 |
+| `assets/how-it-works.ja.png` | 日本語の仕組み図 |
+| `assets/how-it-works.svg` | 英語の仕組み図 |
+| `README.md`・`README.en.md` | 日英の利用方法 |
 | `SECURITY.md` | セキュリティ上の問題の非公開報告方法 |
-| `THIRD_PARTY_NOTICES.md` | CCSL由来の部分、出典、元の著作権表示とライセンス条件 |
+| `THIRD_PARTY_NOTICES.md` | CCSL由来の部分と元の著作権・ライセンス条件 |
 | `LICENSE` | 利用条件と著作権表示 |
 
-## 出典とライセンス
+</details>
 
 - [Codex設定リファレンス](https://learn.chatgpt.com/docs/config-file/config-reference)
 - [Codexの承認とセキュリティ](https://learn.chatgpt.com/docs/agent-approvals-security)
 - [Codex 0.153.4の権限ショートカット](https://github.com/openai/codex/blob/rust-v0.153.4/codex-rs/tui/src/chatwidget/permission_shortcuts.rs)
 - [Codexの公式インストーラー](https://github.com/openai/codex/blob/rust-v0.153.4/scripts/install/install.sh)
-
-CDSLの著作権表示とMITライセンス条件は[LICENSE](LICENSE)に記載しています。CCSL由来の部分・出典・元の著作権表示・ライセンス条件は[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)にまとめています。CDSLはOpenAIやCCSL作者による公式提供・推奨を示すものではありません。
