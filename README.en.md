@@ -6,7 +6,7 @@ CDSL adds a CCSL-inspired status display when you run `codex`. It keeps the mode
 
 The values below are synthetic examples. Each row starts with two spaces, and one space separates the closing bracket from the next value. Percentage numbers use a minimum width of two characters: `[ 8%]`, `[10%]`, and `[100%]`.
 
-![CDSL status display with gpt-6-astra](assets/statusline-preview.png)
+![CDSL status display with gpt-6-astra(high), with effort and its parentheses in pink](assets/statusline-preview.png)
 
 ## How it works
 
@@ -21,6 +21,8 @@ The status process reads the active conversation's local log, Git information, a
 CDSL normally refreshes once per second. It reads the `thread_settings_applied` event recorded immediately after a permission change, so the Permissions row updates without another prompt. Events owned by another thread are ignored. CDSL follows the root conversation being written by the process it launched, excluding subagents and history files opened only for reading. It waits when the conversation is switching or multiple candidates exist.
 
 Commands such as `codex exec`, `codex update`, help, and non-TTY invocations pass their arguments directly to official Codex. For interactive sessions, CDSL disables the native status line through a startup argument. An explicit setting supplied later in the user's arguments takes precedence.
+
+The upper Codex pane supports scrolling through history with the mouse wheel or trackpad. Scroll back to the bottom, or press `q` or `Esc`, to leave history and return to input. The lower CDSL pane stays fixed. To use your terminal's own text selection, hold `Shift` while dragging if your terminal supports it.
 
 ## Requirements
 
