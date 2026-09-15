@@ -111,6 +111,7 @@ class SessionReader:
         self._token_events: list[tuple[float, int]] = []
         self._state: dict[str, Any] = {
             "model": None,
+            "reasoning_effort": None,
             "cwd": None,
             "session_id": None,
             "context_tokens": None,
@@ -174,9 +175,9 @@ class SessionReader:
             if PERMISSION_FIELDS.intersection(payload):
                 self._state.update(permission_snapshot(payload), permissions_source="session_meta")
         elif kind == "turn_context":
-            for key in ("cwd", "model"):
-                if isinstance(payload.get(key), str):
-                    self._state[key] = payload[key]
+            if isinstance(payload.get("cwd"), str):
+                self._state["cwd"] = payload["cwd"]
+            self._model_settings(payload, "effort")
             if PERMISSION_FIELDS.intersection(payload):
                 self._state.update(permission_snapshot(payload), permissions_source="turn_context")
         elif kind == "event_msg" and payload.get("type") == "thread_settings_applied":
@@ -186,6 +187,7 @@ class SessionReader:
             if owner is not None and owner != self._state["session_id"]:
                 return
             settings = _dict(payload.get("thread_settings"))
+            self._model_settings(settings, "reasoning_effort")
             if "permission_profile" in settings and "approval_policy" in settings:
                 self._state.update(permission_snapshot(settings), permissions_source="thread_settings_applied")
         elif kind == "event_msg" and payload.get("type") == "token_count":
@@ -194,6 +196,17 @@ class SessionReader:
                 self._rate_limits(payload["rate_limits"])
         elif kind == "event_msg" and payload.get("type") == "rate_limits":
             self._rate_limits(payload.get("rate_limits", payload))
+
+    def _model_settings(self, settings: dict[str, Any], effort_key: str) -> None:
+        """Keep the effective model and effort together without guessing defaults."""
+        model = settings.get("model")
+        if isinstance(model, str) and model.strip():
+            if model != self._state["model"]:
+                self._state["reasoning_effort"] = None
+            self._state["model"] = model
+        if effort_key in settings:
+            effort = settings[effort_key]
+            self._state["reasoning_effort"] = (effort.strip() or None) if isinstance(effort, str) else None
 
     def _usage(self, info: dict[str, Any], timestamp: float | None) -> None:
         if not info:
