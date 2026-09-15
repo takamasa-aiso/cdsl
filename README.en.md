@@ -178,7 +178,7 @@ Keep the cloned directory after installation: CDSL runs directly from it. If you
 | Weekly | Account usage of the weekly limit and time until reset |
 | Permissions | Permission scope and approval policy applied to the current conversation |
 
-The model appears as `[gpt-6-astra(max)]`. Effort comes from the current conversation log and applied-settings events; only the model name is shown when effort is unavailable. CDSL does not infer it from global settings. Once a model or effort change is recorded in the log, the display follows it on the default one-second refresh cycle.
+The model appears as `[gpt-6-astra(max)]`. Effort, including its parentheses, uses the same pink as the tallest bars in the Session graph. Effort comes from the current conversation log and applied-settings events; only the model name is shown when effort is unavailable. CDSL does not infer it from global settings. Once a model or effort change is recorded in the log, the display follows it on the default one-second refresh cycle.
 
 Session and Weekly percentages describe the account's limits. Their graphs show **token consumption within the displayed conversation**, without aggregating other conversations on the account.
 
