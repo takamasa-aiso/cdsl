@@ -172,11 +172,13 @@ Keep the cloned directory after installation: CDSL runs directly from it. If you
 
 | Row | Meaning |
 |---|---|
-| Header | Model, working directory, and Git branch and change count when available |
+| Header | Model and effort when available, working directory, and Git branch and change count when available |
 | Context | Context usage in the current conversation: percentage, tokens used, capacity, and cache ratio |
 | Session | Account usage of the five-hour limit, plus cumulative tokens in the displayed conversation |
 | Weekly | Account usage of the weekly limit and time until reset |
 | Permissions | Permission scope and approval policy applied to the current conversation |
+
+The model appears as `[gpt-6-astra(max)]`. Effort comes from the current conversation log and applied-settings events; only the model name is shown when effort is unavailable. CDSL does not infer it from global settings. Once a model or effort change is recorded in the log, the display follows it on the default one-second refresh cycle.
 
 Session and Weekly percentages describe the account's limits. Their graphs show **token consumption within the displayed conversation**, without aggregating other conversations on the account.
 
@@ -186,7 +188,7 @@ CDSL identifies limits by `window_minutes`. If the returned limits do not includ
 
 If the five-hour limit returns and Codex records its usage percentage and a valid reset time with `window_minutes = 300` in the current conversation log, Session automatically changes from `[N/A]` to its usage percentage. No reinstallation or manual configuration is needed. CDSL reads Codex's logs on its default one-second refresh cycle instead of querying the usage API directly, so it cannot detect the returning limit until the log updates.
 
-On narrow terminals, labels and graphs are shortened. `[--]` means a limit has not been received or its recorded period has expired. `Permissions: unknown` means permission information is not yet available. If CDSL cannot identify the active conversation unambiguously, it displays a waiting message.
+On narrow terminals, labels and graphs are shortened. `[---]` means the Context, Session, or Weekly percentage has not been received or its recorded period has expired. `Permissions: unknown` means permission information is not yet available. If CDSL cannot identify the active conversation unambiguously, it displays a waiting message.
 
 Legacy terminals, such as `TERM=xterm` with no `COLORTERM`, use compatibility output with fixed-width ASCII graphs and basic colors (yellow for Permissions). Select it explicitly with `CDSL_RENDER_MODE=ascii codex`, or select the standard display with `CDSL_RENDER_MODE=unicode codex`.
 

@@ -96,8 +96,10 @@ def _context(snapshot: dict, now: datetime) -> dict:
         session_range = (f"{start.hour}:{start.minute:02d}", f"{end.hour}:{end.minute:02d}")
     cache_ratio = min(100, (_number(snapshot.get("cache_ratio")) or 0) * 100)
     directory = _text(snapshot.get("cwd"), ".")
+    effort = snapshot.get("reasoning_effort")
     return {
         "model": _text(snapshot.get("model"), "Codex"),
+        "reasoning_effort": _text(effort).strip() if isinstance(effort, str) else "",
         "current_dir": _text(snapshot.get("current_dir")) or PurePath(directory).name or directory,
         "git_branch": _text(snapshot.get("git_branch")),
         "modified_files": int(_number(snapshot.get("modified_files")) or 0),
@@ -183,6 +185,10 @@ def _header(context: dict, width: int) -> str:
     """Prioritize the actual branch name over long directory names."""
     colors = ccsl_render.Colors
     model = ccsl_render.shorten_model_name(context["model"])
+    effort = context["reasoning_effort"]
+    effort_suffix = f"({effort})" if effort else ""
+    model_name = model
+    model += effort_suffix
     show_badge = context["context_size"] >= 1_000_000 and ccsl_render.should_show_1m_badge(context["model"], context["context_size"])
     if show_badge:
         model += "(1M)"
@@ -191,6 +197,14 @@ def _header(context: dict, width: int) -> str:
     def build(model_size, branch_size, directory_size, icons=True, modified=True, separator=" | "):
         icons = icons and not _COMPATIBILITY.get()
         model_text = _clip(model, model_size)
+        if effort_suffix and display_width(model) > model_size:
+            # Preserve the effort by shortening the model name first when space permits.
+            badge = "(1M)" if show_badge else ""
+            if display_width(effort_suffix + badge) >= model_size:
+                badge = ""
+            name_size = model_size - display_width(effort_suffix + badge)
+            model_text = (_clip(model_name, name_size) + effort_suffix + badge
+                          if name_size > 0 else _clip(model_name, model_size))
         if show_badge and model_text.endswith("(1M)"):
             model_text = model_text[:-4] + colors.BRIGHT_MAGENTA + "(1M)" + colors.BRIGHT_YELLOW
         parts = [_paint("[" + model_text + "]", colors.BRIGHT_YELLOW, colors)]
@@ -215,13 +229,13 @@ def _header(context: dict, width: int) -> str:
     if branch:
         model_size = max(1, min(display_width(model), width // 3, width - min(4, display_width(branch)) - 3))
         return build(model_size, max(1, width - model_size - 3), 0, False, False, " ")
-    return _paint("[" + _clip(model, max(1, width - 2)) + "]", colors.BRIGHT_YELLOW, colors)
+    return build(max(1, width - 2), 0, 0, False, False, "")
 
 
 def _badge(value: float | None, available: bool | None, context=False) -> str:
     colors = ccsl_render.Colors
     if value is None:
-        content = "N/A" if available is False else "--"
+        content = "N/A" if available is False else "---"
         color = colors.BRIGHT_WHITE
     else:
         percentage = int(min(100, value))
@@ -385,7 +399,7 @@ def render(snapshot: dict, width: int = 80, color: bool = True, compatibility: b
 
     ``cache_ratio`` uses 0..1; utilization uses 0..100. Timestamps accept
     ISO 8601 or epoch seconds and display in JST. ``now`` fixes render time.
-    Unavailable limits show ``N/A``; pending values show ``--``.
+    Unavailable limits show ``[N/A]``; pending percentages show ``[---]``.
     Permission labels describe settings without changing them.
     Compatibility output uses ASCII graphs and basic ANSI colors.
     """
