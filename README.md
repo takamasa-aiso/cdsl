@@ -116,6 +116,52 @@ codex resume
 source "$HOME/.config/cdsl/shell.sh"
 ```
 
+## アップデート
+
+アンインストールは不要です。Codexを終了し、導入したユーザーの通常のBashプロンプトで実行してください。既存の描画設定は保持されます。
+
+### curl経由で導入した場合
+
+インストール時のコマンドを再実行します。既存の`~/.local/share/cdsl/source`を最新版へ更新し、不足パッケージも確認・導入します。現在のBashへ反映した後、Codexを起動します。
+
+```bash
+(set -o pipefail; curl -fsSL https://raw.githubusercontent.com/takamasa-aiso/cdsl/main/install.sh | sh) &&
+  . "$HOME/.config/cdsl/shell.sh" &&
+  codex
+```
+
+### 手動clone・ローカルのinstall.shで導入した場合
+
+`CDSL_DIR`を実際のclone先へ置き換えて実行します。以下は`~/cdsl`の例です。`git -C`と絶対パスで対象を指定するため、`cd`は不要です。手動のインストールコマンドは、不足パッケージがあれば一覧を表示して停止します。「対応環境」の手順で導入してから再実行してください。
+
+```bash
+CDSL_DIR="$HOME/cdsl"
+
+git -C "$CDSL_DIR" pull --ff-only &&
+  python3 "$CDSL_DIR/scripts/cdsl.py" install --codex &&
+  . "$HOME/.config/cdsl/shell.sh" &&
+  codex
+```
+
+起動処理やtmux設定の変更（スクロール対応など）を反映するには、更新後にCodexを起動し直してください。`refresh-statusline.py`は下部表示だけを再読み込みするため、これらの変更は反映されません。
+
+### 更新で起動連携を失わない構成
+
+| 場所 | 役割 |
+|---|---|
+| `~/.local/share/cdsl/bin/codex` | CDSL専用の起動入口 |
+| `~/.config/cdsl/shell.sh` | 専用入口をPATHの先頭へ置く設定 |
+| `~/.bashrc` | Bashの対話起動で設定を読み込む管理ブロック |
+| Bashのログイン設定 | `.bash_profile`、`.bash_login`、`.profile` の優先順位で実際に使われるファイルへ管理ブロックを追加 |
+| `~/.config/cdsl/config.toml` | 描画コマンドと更新間隔 |
+| `~/.local/share/cdsl/startup.json` | アンインストール・再設定用の管理情報 |
+
+公式Codexの入口を上書きしないため、公式インストーラーがその入口を作り直してもCDSL専用の入口は残ります。standalone版は `current`、npm版は選択した実行パスを保持し、同じインストール先の更新に追従します。
+
+Nodeのバージョン管理などでCodexのインストール先自体を変えた場合は、`--real-codex` で新しいパスを指定して再登録してください。Codex側のログ形式やCLI仕様が変わった場合はCDSLの対応が必要になることがあります。
+
+シェル設定の既存部分は保持し、CDSLの管理ブロックだけを追加・更新します。変更前のファイルは0600のバックアップへ保存します。管理ブロックが外部で編集されている場合や、編集対象のシェル設定がシンボリックリンクの場合は、上書きせずエラーにします。
+
 ### 管理操作の共通準備
 
 導入したユーザーのBashで、次の表から該当する設定を1つ実行します。手動導入の例は`~/cdsl`にcloneした場合です。別の場所なら、実際の絶対パスへ置き換えてください。手元の`install.sh`で導入した場合も、そのCDSLフォルダーを指定します。
@@ -241,52 +287,6 @@ Codexの`/keymap`で`next_permission_mode`にキーを割り当て、メニュ�
 2026-09-07（JST）時点の最新安定版は[Codex CLI 0.153.4](https://github.com/openai/codex/releases/tag/rust-v0.153.4)です。この版の実行中の画面では、`next_permission_mode`は利用可能なRead Only・Ask for approval・Approve for meを巡回します。Full Accessは巡回対象外なので、`/permissions`で選択してください。これは実行中の画面での切替についての説明であり、`--yolo`などの起動オプションとは別です。
 
 切替の候補と確認処理はCodex本体に従います。ショートカットはメニューやポップアップを閉じてから操作します。ショートカットによる変更は現在の会話だけに適用されます。
-
-## アップデート
-
-アンインストールは不要です。Codexを終了し、導入したユーザーの通常のBashプロンプトで実行してください。既存の描画設定は保持されます。
-
-### curl経由で導入した場合
-
-インストール時のコマンドを再実行します。既存の`~/.local/share/cdsl/source`を最新版へ更新し、不足パッケージも確認・導入します。現在のBashへ反映した後、Codexを起動します。
-
-```bash
-(set -o pipefail; curl -fsSL https://raw.githubusercontent.com/takamasa-aiso/cdsl/main/install.sh | sh) &&
-  . "$HOME/.config/cdsl/shell.sh" &&
-  codex
-```
-
-### 手動clone・ローカルのinstall.shで導入した場合
-
-`CDSL_DIR`を実際のclone先へ置き換えて実行します。以下は`~/cdsl`の例です。`git -C`と絶対パスで対象を指定するため、`cd`は不要です。手動のインストールコマンドは、不足パッケージがあれば一覧を表示して停止します。「対応環境」の手順で導入してから再実行してください。
-
-```bash
-CDSL_DIR="$HOME/cdsl"
-
-git -C "$CDSL_DIR" pull --ff-only &&
-  python3 "$CDSL_DIR/scripts/cdsl.py" install --codex &&
-  . "$HOME/.config/cdsl/shell.sh" &&
-  codex
-```
-
-起動処理やtmux設定の変更（スクロール対応など）を反映するには、更新後にCodexを起動し直してください。`refresh-statusline.py`は下部表示だけを再読み込みするため、これらの変更は反映されません。
-
-### 更新で起動連携を失わない構成
-
-| 場所 | 役割 |
-|---|---|
-| `~/.local/share/cdsl/bin/codex` | CDSL専用の起動入口 |
-| `~/.config/cdsl/shell.sh` | 専用入口をPATHの先頭へ置く設定 |
-| `~/.bashrc` | Bashの対話起動で設定を読み込む管理ブロック |
-| Bashのログイン設定 | `.bash_profile`、`.bash_login`、`.profile` の優先順位で実際に使われるファイルへ管理ブロックを追加 |
-| `~/.config/cdsl/config.toml` | 描画コマンドと更新間隔 |
-| `~/.local/share/cdsl/startup.json` | アンインストール・再設定用の管理情報 |
-
-公式Codexの入口を上書きしないため、公式インストーラーがその入口を作り直してもCDSL専用の入口は残ります。standalone版は `current`、npm版は選択した実行パスを保持し、同じインストール先の更新に追従します。
-
-Nodeのバージョン管理などでCodexのインストール先自体を変えた場合は、`--real-codex` で新しいパスを指定して再登録してください。Codex側のログ形式やCLI仕様が変わった場合はCDSLの対応が必要になることがあります。
-
-シェル設定の既存部分は保持し、CDSLの管理ブロックだけを追加・更新します。変更前のファイルは0600のバックアップへ保存します。管理ブロックが外部で編集されている場合や、編集対象のシェル設定がシンボリックリンクの場合は、上書きせずエラーにします。
 
 ## 描画コマンドの設定（カスタマイズする場合のみ）
 

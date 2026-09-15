@@ -116,6 +116,53 @@ After a successful installation, run this to activate the current Bash shell. Bo
 source "$HOME/.config/cdsl/shell.sh"
 ```
 
+## Updates
+
+Uninstallation is not required before updating. Exit Codex and run the commands below at the installing user's regular Bash prompt.
+
+### Installed with curl
+
+```bash
+(set -o pipefail; curl -fsSL https://raw.githubusercontent.com/takamasa-aiso/cdsl/main/install.sh | sh) &&
+  . "$HOME/.config/cdsl/shell.sh" &&
+  codex
+```
+
+This updates the existing `~/.local/share/cdsl/source`, checks and installs missing dependencies, and activates the current shell before starting Codex. Existing renderer settings are preserved.
+
+### Manual clone or local install.sh
+
+Set `CDSL_DIR` to the actual location of your CDSL checkout. The example below assumes `~/cdsl`; replace it if you installed elsewhere. No `cd` is needed.
+
+```bash
+CDSL_DIR="$HOME/cdsl"
+git -C "$CDSL_DIR" pull --ff-only &&
+  python3 "$CDSL_DIR/scripts/cdsl.py" install --codex &&
+  . "$HOME/.config/cdsl/shell.sh" &&
+  codex
+```
+
+The Python installer reports missing dependencies and stops without installing packages. Install the missing packages using the requirements above, then rerun the update commands.
+
+Startup and tmux changes, including scrolling behavior, take effect in a newly launched Codex session. `refresh-statusline.py` reloads only the lower display and does not apply these startup changes.
+
+### Why Codex updates preserve CDSL
+
+| Location | Purpose |
+|---|---|
+| `~/.local/share/cdsl/bin/codex` | CDSL's dedicated startup entry |
+| `~/.config/cdsl/shell.sh` | Adds that entry to the front of `PATH` |
+| `~/.bashrc` | Loads the integration for interactive Bash shells |
+| Bash login configuration | Adds a managed block to the file Bash uses, following `.bash_profile`, `.bash_login`, `.profile` precedence |
+| `~/.config/cdsl/config.toml` | Rendering command and refresh interval |
+| `~/.local/share/cdsl/startup.json` | Installation state used for updates and uninstallation |
+
+CDSL's entry remains in place when the official Codex installer replaces its own entry. Standalone installations retain the `current` path; npm installations retain the selected executable path. Updates at the same installation location are picked up automatically.
+
+If Codex moves to a different location, for example after switching Node versions, rerun the installer with `--real-codex` pointing to the new path. Changes to Codex's log format or CLI behavior may require a CDSL update.
+
+The installer preserves existing shell configuration and changes only its managed blocks. It saves backups with file permissions `0600`. If a managed block has been edited externally or a shell configuration file is a symbolic link, installation stops with an error instead of overwriting it.
+
 ### Common preparation for maintenance
 
 In the installing user's Bash shell, run one setting from this table. The manual example assumes a clone at `~/cdsl`; replace it with the actual absolute path if yours is elsewhere. When using a local `install.sh`, select the CDSL directory containing that script.
@@ -241,53 +288,6 @@ Use `/keymap` to change the shortcut in a running Codex session. Editing the con
 The latest stable release is [Codex CLI 0.153.4](https://github.com/openai/codex/releases/tag/rust-v0.153.4), checked on 2026-09-07 (JST). In its running interface, `next_permission_mode` cycles through the available Read Only, Ask for approval, and Approve for me modes. Full Access is outside that cycle; select it through `/permissions`. This describes in-session controls; startup flags such as `--yolo` are separate.
 
 Codex determines the available modes and any confirmation steps. Close menus and popups before using the shortcut. Shortcut changes apply to the current conversation.
-
-## Updates
-
-Uninstallation is not required before updating. Exit Codex and run the commands below at the installing user's regular Bash prompt.
-
-### Installed with curl
-
-```bash
-(set -o pipefail; curl -fsSL https://raw.githubusercontent.com/takamasa-aiso/cdsl/main/install.sh | sh) &&
-  . "$HOME/.config/cdsl/shell.sh" &&
-  codex
-```
-
-This updates the existing `~/.local/share/cdsl/source`, checks and installs missing dependencies, and activates the current shell before starting Codex. Existing renderer settings are preserved.
-
-### Manual clone or local install.sh
-
-Set `CDSL_DIR` to the actual location of your CDSL checkout. The example below assumes `~/cdsl`; replace it if you installed elsewhere. No `cd` is needed.
-
-```bash
-CDSL_DIR="$HOME/cdsl"
-git -C "$CDSL_DIR" pull --ff-only &&
-  python3 "$CDSL_DIR/scripts/cdsl.py" install --codex &&
-  . "$HOME/.config/cdsl/shell.sh" &&
-  codex
-```
-
-The Python installer reports missing dependencies and stops without installing packages. Install the missing packages using the requirements above, then rerun the update commands.
-
-Startup and tmux changes, including scrolling behavior, take effect in a newly launched Codex session. `refresh-statusline.py` reloads only the lower display and does not apply these startup changes.
-
-### Why Codex updates preserve CDSL
-
-| Location | Purpose |
-|---|---|
-| `~/.local/share/cdsl/bin/codex` | CDSL's dedicated startup entry |
-| `~/.config/cdsl/shell.sh` | Adds that entry to the front of `PATH` |
-| `~/.bashrc` | Loads the integration for interactive Bash shells |
-| Bash login configuration | Adds a managed block to the file Bash uses, following `.bash_profile`, `.bash_login`, `.profile` precedence |
-| `~/.config/cdsl/config.toml` | Rendering command and refresh interval |
-| `~/.local/share/cdsl/startup.json` | Installation state used for updates and uninstallation |
-
-CDSL's entry remains in place when the official Codex installer replaces its own entry. Standalone installations retain the `current` path; npm installations retain the selected executable path. Updates at the same installation location are picked up automatically.
-
-If Codex moves to a different location, for example after switching Node versions, rerun the installer with `--real-codex` pointing to the new path. Changes to Codex's log format or CLI behavior may require a CDSL update.
-
-The installer preserves existing shell configuration and changes only its managed blocks. It saves backups with file permissions `0600`. If a managed block has been edited externally or a shell configuration file is a symbolic link, installation stops with an error instead of overwriting it.
 
 ## Rendering configuration (optional)
 
