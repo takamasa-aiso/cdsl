@@ -205,6 +205,11 @@ def _header(context: dict, width: int) -> str:
             name_size = model_size - display_width(effort_suffix + badge)
             model_text = (_clip(model_name, name_size) + effort_suffix + badge
                           if name_size > 0 else _clip(model_name, model_size))
+        effort_end = len(model_text) - (4 if show_badge and model_text.endswith("(1M)") else 0)
+        if effort_suffix and model_text[:effort_end].endswith(effort_suffix):
+            model_text = (model_text[:effort_end - len(effort_suffix)]
+                          + colors.BRIGHT_RED + effort_suffix + colors.BRIGHT_YELLOW
+                          + model_text[effort_end:])
         if show_badge and model_text.endswith("(1M)"):
             model_text = model_text[:-4] + colors.BRIGHT_MAGENTA + "(1M)" + colors.BRIGHT_YELLOW
         parts = [_paint("[" + model_text + "]", colors.BRIGHT_YELLOW, colors)]
