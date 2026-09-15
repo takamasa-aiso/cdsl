@@ -52,6 +52,47 @@ def configure_clipboard(run_dir: Path) -> bool:
     return True
 
 
+def configure_scrolling(run_dir: Path) -> None:
+    """Enable mouse history browsing without making the status pane interactive."""
+    state = json.loads((run_dir / "started.json").read_text(encoding="utf-8"))
+    socket, session = state.get("socket"), state.get("session")
+    if not isinstance(socket, str) or not socket.startswith("cdsl-"):
+        raise ValueError("Could not identify the CDSL tmux server.")
+    if not isinstance(session, str) or not session.startswith("cdsl-"):
+        raise ValueError("Could not identify the CDSL session.")
+    mouse_or_mode = "#{||:#{pane_in_mode},#{mouse_any_flag}}"
+    handlers = {
+        "WheelUpPane": (f"if-shell -F -t = '{mouse_or_mode}' 'send-keys -M' "
+                        "'copy-mode -e -t =; send-keys -X -N 5 -t = scroll-up'"),
+        "WheelDownPane": "send-keys -M",
+        "MouseDown1Pane": "select-pane -t =; send-keys -M",
+        "MouseDown2Pane": (f"select-pane -t =; if-shell -F -t = '{mouse_or_mode}' "
+                           "'send-keys -M' 'paste-buffer -p'"),
+        "MouseDown3Pane": "send-keys -M",
+        "M-MouseDown3Pane": "send-keys -M",
+        "MouseDrag1Pane": (f"if-shell -F -t = '{mouse_or_mode}' 'send-keys -M' "
+                           "'copy-mode -M -t ='"),
+    }
+    for event, selection in (("DoubleClick1Pane", "select-word"),
+                             ("TripleClick1Pane", "select-line")):
+        handlers[event] = (
+            f"select-pane -t =; if-shell -F -t = '{mouse_or_mode}' 'send-keys -M' "
+            f"'copy-mode -H -t =; send-keys -X {selection}; "
+            "run-shell -d 0.3; send-keys -X copy-pipe-and-cancel'"
+        )
+    # The default tmux mouse bindings can focus, freeze, resize, or remove the status pane.
+    commands = [("bind-key", "-n", event, "if-shell", "-F", "-t", "=",
+                 "#{==:#{pane_index},0}", handler) for event, handler in handlers.items()]
+    commands.extend([
+        ("unbind-key", "-n", "MouseDrag1Border"),
+        ("set-option", "-t", session, "mouse", "on"),
+    ])
+    for arguments in commands:
+        result = _tmux(socket, *arguments, capture_output=True, text=True, timeout=5)
+        if result.returncode:
+            raise OSError(result.stderr.strip() or "Failed to configure mouse scrolling.")
+
+
 def finish_run(run_dir: Path, code: int) -> None:
     """Record the exit code and close only the session created by this launch."""
     try:
@@ -157,6 +198,7 @@ def run(codex_args: list[str], cwd: Path, codex_home: Path) -> int:
             result = _tmux(socket, *arguments, capture_output=True, text=True, timeout=10)
             if result.returncode:
                 raise RuntimeError(result.stderr.strip() or "Could not create the tmux status pane.")
+        configure_scrolling(run_dir)
         configure_clipboard(run_dir)
         (run_dir / "ready").touch()
         environment = os.environ.copy()
