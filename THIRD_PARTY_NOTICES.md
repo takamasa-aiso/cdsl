@@ -6,10 +6,16 @@
 
 `cdsl/ccsl_render.py` contains adapted portions of CCSL 1.0.27: ANSI colors, percentage-based color selection, progress bars, sparklines, token-count and model-name formatting, and 1M badge selection. Unused functions, arguments, and branches have been removed.
 
+`cdsl/renderer.py` は、CCSL 1.0.31のモデル表示にあるeffortの短縮形とFastマーカーを、Codexで取得できる値に合わせて採用しています。通常幅では従来のCDSLのeffort表記を維持します。
+
+`cdsl/renderer.py` adapts CCSL 1.0.31's compact effort labels and Fast marker to Codex data. At normal widths, CDSL retains its existing full effort labels.
+
 - Upstream: [usedhonda/statusline](https://github.com/usedhonda/statusline)
 - Version: `1.0.27`
 - Original file: `statusline.py`
 - Original file SHA-256: `1bb95106e158ca8ea517256130e117915a10b1548f2b93f4a46171bd4390feda`
+- CCSL 1.0.31 source: [statusline.py at v1.0.31](https://github.com/usedhonda/statusline/blob/v1.0.31/statusline.py)
+- CCSL 1.0.31 source SHA-256: `1bc7ad799efb385d569171fa78124de50945803b2bee8ec5c84db75cc823113d`
 - License: MIT; [upstream license source](https://github.com/usedhonda/statusline/blob/main/LICENSE)
 
 上流の著作権表示とMITライセンス原文を以下に保持します。

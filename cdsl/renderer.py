@@ -1,4 +1,7 @@
-"""Render aligned Codex status using CCSL 1.0.27 colors and graphs."""
+"""Render Codex status with CCSL 1.0.27 colors and graphs.
+
+Fast and compact header modifiers are inspired by CCSL 1.0.31.
+"""
 
 from __future__ import annotations
 
@@ -100,6 +103,7 @@ def _context(snapshot: dict, now: datetime) -> dict:
     return {
         "model": _text(snapshot.get("model"), "Codex"),
         "reasoning_effort": _text(effort).strip() if isinstance(effort, str) else "",
+        "fast_mode": snapshot.get("fast_mode") is True,
         "current_dir": _text(snapshot.get("current_dir")) or PurePath(directory).name or directory,
         "git_branch": _text(snapshot.get("git_branch")),
         "modified_files": int(_number(snapshot.get("modified_files")) or 0),
@@ -184,34 +188,46 @@ def _fit_ansi(text: str, width: int) -> str:
 def _header(context: dict, width: int) -> str:
     """Prioritize the actual branch name over long directory names."""
     colors = ccsl_render.Colors
-    model = ccsl_render.shorten_model_name(context["model"])
+    model_name = ccsl_render.shorten_model_name(context["model"])
     effort = context["reasoning_effort"]
     effort_suffix = f"({effort})" if effort else ""
-    model_name = model
-    model += effort_suffix
+    fast_suffix = (" fast" if _COMPATIBILITY.get() else "⚡") if context.get("fast_mode") is True else ""
     show_badge = context["context_size"] >= 1_000_000 and ccsl_render.should_show_1m_badge(context["model"], context["context_size"])
-    if show_badge:
-        model += "(1M)"
+    badge_suffix = "(1M)" if show_badge else ""
+    model = model_name + effort_suffix + fast_suffix + badge_suffix
     branch, directory = context["git_branch"], context["current_dir"]
+
+    def model_label(size):
+        suffix, fast, badge = effort_suffix, fast_suffix, badge_suffix
+        short = {"low": "lo", "medium": "med", "high": "hi", "xhigh": "xh"}.get(effort)
+        while display_width(model_name + suffix + fast + badge) > size:
+            abbreviated = f"({short})" if suffix and short else ""
+            if abbreviated and display_width(abbreviated + fast + badge) < size:
+                # Shorten effort only when doing so leaves more room for the model.
+                suffix = abbreviated
+                break
+            if display_width(suffix + fast + badge) < size:
+                break
+            # Omit whole modifiers when even a shortened model cannot fit beside them.
+            if badge:
+                badge = ""
+            elif suffix:
+                suffix = ""
+            elif fast:
+                fast = ""
+            else:
+                break
+        name_size = max(1, size - display_width(suffix + fast + badge))
+        label = _clip(model_name, name_size)
+        for text, color in ((suffix, colors.BRIGHT_RED), (fast, colors.BRIGHT_MAGENTA),
+                            (badge, colors.BRIGHT_MAGENTA)):
+            if text:
+                label += color + text + colors.BRIGHT_YELLOW
+        return label
 
     def build(model_size, branch_size, directory_size, icons=True, modified=True, separator=" | "):
         icons = icons and not _COMPATIBILITY.get()
-        model_text = _clip(model, model_size)
-        if effort_suffix and display_width(model) > model_size:
-            # Preserve the effort by shortening the model name first when space permits.
-            badge = "(1M)" if show_badge else ""
-            if display_width(effort_suffix + badge) >= model_size:
-                badge = ""
-            name_size = model_size - display_width(effort_suffix + badge)
-            model_text = (_clip(model_name, name_size) + effort_suffix + badge
-                          if name_size > 0 else _clip(model_name, model_size))
-        effort_end = len(model_text) - (4 if show_badge and model_text.endswith("(1M)") else 0)
-        if effort_suffix and model_text[:effort_end].endswith(effort_suffix):
-            model_text = (model_text[:effort_end - len(effort_suffix)]
-                          + colors.BRIGHT_RED + effort_suffix + colors.BRIGHT_YELLOW
-                          + model_text[effort_end:])
-        if show_badge and model_text.endswith("(1M)"):
-            model_text = model_text[:-4] + colors.BRIGHT_MAGENTA + "(1M)" + colors.BRIGHT_YELLOW
+        model_text = model_label(model_size)
         parts = [_paint("[" + model_text + "]", colors.BRIGHT_YELLOW, colors)]
         if directory_size:
             parts.append(_paint(("📁 " if icons else "") + _clip(directory, directory_size), colors.BRIGHT_CYAN, colors))
@@ -226,6 +242,7 @@ def _header(context: dict, width: int) -> str:
         (width, 24, 24, True, True, " | "),
         (24, 24, 10, True, True, " | "),
         (24, 24, 0 if branch else 12, True, True, " | "),
+        (width, 24, 0 if branch else 8, False, False, " "),
         (16, 16, 0 if branch else 8, False, False, " "),
     ):
         line = build(*options)

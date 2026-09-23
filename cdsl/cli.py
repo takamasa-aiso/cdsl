@@ -219,7 +219,7 @@ def doctor():
 
 def parser():
     p = argparse.ArgumentParser(prog="scripts/cdsl.py", description="Configure and diagnose the CDSL display for Codex.")
-    p.add_argument("--version", action="version", version=f"cdsl {__version__} (CCSL 1.0.27 renderer)")
+    p.add_argument("--version", action="version", version=f"cdsl {__version__}")
     sub = p.add_subparsers(dest="command", required=True)
     for name in ("_codex", "_watch"):
         command = sub.add_parser(name, help="Internal CDSL startup process")

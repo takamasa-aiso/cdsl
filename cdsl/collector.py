@@ -112,6 +112,7 @@ class SessionReader:
         self._state: dict[str, Any] = {
             "model": None,
             "reasoning_effort": None,
+            "fast_mode": None,
             "cwd": None,
             "session_id": None,
             "context_tokens": None,
@@ -188,6 +189,8 @@ class SessionReader:
                 return
             settings = _dict(payload.get("thread_settings"))
             self._model_settings(settings, "reasoning_effort")
+            if "service_tier" in settings:
+                self._service_tier(settings["service_tier"])
             if "permission_profile" in settings and "approval_policy" in settings:
                 self._state.update(permission_snapshot(settings), permissions_source="thread_settings_applied")
         elif kind == "event_msg" and payload.get("type") == "token_count":
@@ -203,10 +206,20 @@ class SessionReader:
         if isinstance(model, str) and model.strip():
             if model != self._state["model"]:
                 self._state["reasoning_effort"] = None
+                self._state["fast_mode"] = None
             self._state["model"] = model
         if effort_key in settings:
             effort = settings[effort_key]
             self._state["reasoning_effort"] = (effort.strip() or None) if isinstance(effort, str) else None
+
+    def _service_tier(self, tier: Any) -> None:
+        """Show Fast only when Codex reports a recognized effective tier."""
+        value = tier.strip().lower() if isinstance(tier, str) else ""
+        self._state["fast_mode"] = (
+            True if value in {"fast", "priority"}
+            else False if value in {"default", "flex"}
+            else None
+        )
 
     def _usage(self, info: dict[str, Any], timestamp: float | None) -> None:
         if not info:
