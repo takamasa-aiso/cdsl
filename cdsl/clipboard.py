@@ -1,4 +1,4 @@
-"""Pass a Windows clipboard image to Codex only when the user presses Ctrl+v."""
+"""Bridge clipboard text and images across the dedicated WSL tmux session."""
 
 from __future__ import annotations
 
@@ -12,13 +12,15 @@ import re
 import shlex
 import shutil
 import subprocess
+import sys
 import tempfile
 import uuid
 
 
 MAX_IMAGE_BYTES = 32 * 1024 * 1024
+MAX_TEXT_BYTES = 4 * 1024 * 1024
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
-POWERSHELL_SCRIPT = """$ErrorActionPreference = 'Stop'
+POWERSHELL_IMAGE_SCRIPT = """$ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 $clipImage = [System.Windows.Forms.Clipboard]::GetImage()
@@ -31,6 +33,32 @@ try {
 } finally {
     $clipBuffer.Dispose()
     $clipImage.Dispose()
+}
+"""
+POWERSHELL_READ_TEXT_SCRIPT = """$ErrorActionPreference = 'Stop'
+Add-Type -AssemblyName System.Windows.Forms
+$clipText = [System.Windows.Forms.Clipboard]::GetText()
+if ([string]::IsNullOrEmpty($clipText)) { exit 3 }
+$clipBytes = [System.Text.Encoding]::UTF8.GetBytes($clipText)
+if ($clipBytes.Length -gt 4194304) { exit 4 }
+[Console]::Out.Write([Convert]::ToBase64String($clipBytes))
+"""
+POWERSHELL_WRITE_TEXT_SCRIPT = """$ErrorActionPreference = 'Stop'
+Add-Type -AssemblyName System.Windows.Forms
+$clipBuffer = New-Object System.IO.MemoryStream
+try {
+    $source = [Console]::OpenStandardInput()
+    $chunk = New-Object byte[] 65536
+    while (($count = $source.Read($chunk, 0, $chunk.Length)) -gt 0) {
+        if ($clipBuffer.Length + $count -gt 4194304) { exit 4 }
+        $clipBuffer.Write($chunk, 0, $count)
+    }
+    if ($clipBuffer.Length -eq 0) { exit 3 }
+    $strictUtf8 = New-Object System.Text.UTF8Encoding($false, $true)
+    $clipText = $strictUtf8.GetString($clipBuffer.ToArray())
+    [System.Windows.Forms.Clipboard]::SetText($clipText)
+} finally {
+    $clipBuffer.Dispose()
 }
 """
 _OWNED_NAME = re.compile(r"cdsl-[A-Za-z0-9_-]{1,128}\Z")
@@ -101,7 +129,7 @@ def _fallback(socket: str, session: str, pane: str, *, report: bool = False) -> 
         return 1
     if report:
         try:
-            _tmux(socket, "display-message", "-t", pane, "CDSL: Could not paste the image; forwarded Ctrl+v to Codex.")
+            _tmux(socket, "display-message", "-t", pane, "CDSL: Could not paste the clipboard content; forwarded Ctrl+v to Codex.")
         except (OSError, subprocess.TimeoutExpired):
             pass
     return 0
@@ -109,7 +137,7 @@ def _fallback(socket: str, session: str, pane: str, *, report: bool = False) -> 
 
 def _read_windows_image(executable: str) -> bytes | None:
     result = subprocess.run(
-        [executable, "-NoProfile", "-NonInteractive", "-STA", "-Command", POWERSHELL_SCRIPT],
+        [executable, "-NoProfile", "-NonInteractive", "-STA", "-Command", POWERSHELL_IMAGE_SCRIPT],
         check=False, capture_output=True, timeout=15,
     )
     if result.returncode == 3:
@@ -126,6 +154,47 @@ def _read_windows_image(executable: str) -> bytes | None:
     if len(image) > MAX_IMAGE_BYTES or not image.startswith(PNG_SIGNATURE):
         raise _ClipboardFailure()
     return image
+
+
+def _read_windows_text(executable: str) -> bytes | None:
+    result = subprocess.run(
+        [executable, "-NoProfile", "-NonInteractive", "-STA", "-Command", POWERSHELL_READ_TEXT_SCRIPT],
+        check=False, capture_output=True, timeout=15,
+    )
+    if result.returncode == 3:
+        return None
+    if result.returncode:
+        raise _ClipboardFailure()
+    encoded = result.stdout.strip()
+    if not encoded or len(encoded) > ((MAX_TEXT_BYTES + 2) // 3) * 4:
+        raise _ClipboardFailure()
+    try:
+        content = base64.b64decode(encoded, validate=True)
+        content.decode("utf-8")
+    except (ValueError, UnicodeDecodeError, binascii.Error) as error:
+        raise _ClipboardFailure() from error
+    if len(content) > MAX_TEXT_BYTES or b"\x00" in content:
+        raise _ClipboardFailure()
+    return content.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+
+
+def copy_text() -> int:
+    """Copy tmux selection bytes into the Windows text clipboard."""
+    executable = _powershell_executable()
+    if executable is None:
+        return 1
+    content = sys.stdin.buffer.read(MAX_TEXT_BYTES + 1)
+    if not content or len(content) > MAX_TEXT_BYTES or b"\x00" in content:
+        return 1
+    try:
+        content.decode("utf-8")
+        result = subprocess.run(
+            [executable, "-NoProfile", "-NonInteractive", "-STA", "-Command", POWERSHELL_WRITE_TEXT_SCRIPT],
+            input=content, check=False, capture_output=True, timeout=15,
+        )
+    except (OSError, UnicodeDecodeError, subprocess.TimeoutExpired):
+        return 1
+    return 0 if result.returncode == 0 else 1
 
 
 def _save_image(image: bytes) -> Path:
@@ -157,11 +226,11 @@ def _discard_buffer(socket: str, name: str) -> None:
         pass
 
 
-def paste_image(run_dir: Path, target_pane: str) -> int:
-    """Paste the PNG path once, without submitting input or printing image contents.
+def paste_clipboard(run_dir: Path, target_pane: str) -> int:
+    """Paste Windows clipboard text or a PNG path without submitting input.
 
     Retain successful PNG files for asynchronous reads and session resume.
-    If no image is available or retrieval fails, forward Ctrl+v to the same pane.
+    If neither format is available or retrieval fails, forward Ctrl+v to the same pane.
     """
     target = _run_target(Path(run_dir), target_pane)
     if target is None:
@@ -178,12 +247,15 @@ def paste_image(run_dir: Path, target_pane: str) -> int:
     try:
         image = _read_windows_image(executable)
         if image is None:
-            return _fallback(socket, session, target_pane)
-        path = _save_image(image)
-        # The Codex path parser accepts POSIX shell quoting.
-        pasted_path = shlex.quote(str(path)).encode("utf-8")
+            pasted_content = _read_windows_text(executable)
+            if pasted_content is None:
+                return _fallback(socket, session, target_pane)
+        else:
+            path = _save_image(image)
+            # The Codex path parser accepts POSIX shell quoting.
+            pasted_content = shlex.quote(str(path)).encode("utf-8")
         buffer_attempted = True
-        loaded = _tmux(socket, "load-buffer", "-b", buffer_name, "-", input=pasted_path)
+        loaded = _tmux(socket, "load-buffer", "-b", buffer_name, "-", input=pasted_content)
         if loaded.returncode or not _valid_target(socket, session, target_pane):
             raise _ClipboardFailure()
         pasted = _tmux(socket, "paste-buffer", "-p", "-d", "-b", buffer_name, "-t", target_pane)

@@ -31,7 +31,7 @@ def _command(action: str, run_dir: Path, cwd: Path, codex_home: Path,
 
 
 def configure_clipboard(run_dir: Path) -> bool:
-    """Connect Ctrl+v to the Windows image clipboard in the dedicated WSL tmux session."""
+    """Bridge tmux selections and paste keys to the Windows clipboard on WSL."""
     if not os.environ.get("WSL_DISTRO_NAME"):
         return False
     state = json.loads((run_dir / "started.json").read_text(encoding="utf-8"))
@@ -40,15 +40,26 @@ def configure_clipboard(run_dir: Path) -> bool:
         raise ValueError("Could not identify the CDSL tmux server.")
     if not isinstance(session, str) or not session.startswith("cdsl-"):
         raise ValueError("Could not identify the CDSL session.")
-    script = Path(__file__).resolve().parent.parent / "scripts" / "paste-image.py"
+    script = Path(__file__).resolve().parent.parent / "scripts" / "clipboard.py"
     if not script.is_file():
-        raise ValueError("The image-paste script was not found.")
-    command = shlex.join([sys.executable, str(script), "--run-dir", str(run_dir),
-                          "--pane", "#{pane_id}"])
-    result = _tmux(socket, "bind-key", "-n", "C-v", "run-shell", "-b", command,
-                   capture_output=True, text=True, timeout=5)
-    if result.returncode:
-        raise OSError(result.stderr.strip() or "Failed to configure the image-paste key binding.")
+        raise ValueError("The clipboard script was not found.")
+    paste_command = shlex.join([sys.executable, str(script), "paste", "--run-dir", str(run_dir),
+                                "--pane", "#{pane_id}"])
+    commands = [("bind-key", "-n", "C-v", "run-shell", "-b", paste_command)]
+    from .clipboard import _powershell_executable
+    if _powershell_executable() is not None:
+        copy_command = shlex.join([sys.executable, str(script), "copy"])
+        mouse_or_mode = "#{||:#{pane_in_mode},#{mouse_any_flag}}"
+        commands.extend([
+            ("set-option", "-s", "copy-command", copy_command),
+            ("set-option", "-s", "set-clipboard", "off"),
+            ("bind-key", "-n", "MouseDown3Pane", "if-shell", "-F", "-t", "=",
+             mouse_or_mode, "send-keys -M", f"run-shell -b {shlex.quote(paste_command)}"),
+        ])
+    for arguments in commands:
+        result = _tmux(socket, *arguments, capture_output=True, text=True, timeout=5)
+        if result.returncode:
+            raise OSError(result.stderr.strip() or "Failed to configure clipboard integration.")
     return True
 
 

@@ -12,7 +12,7 @@ The preview uses synthetic values.
 - [Installation](#installation): requirements, automatic installation, and manual installation
 - [Updates](#updates)
 - [Maintenance](#maintenance): diagnostics, display reload, uninstallation, and recovery
-- [Display and controls](#display-and-controls): rows, permissions, scrolling, and image pasting
+- [Display and controls](#display-and-controls): rows, permissions, scrolling, copying, and pasting
 - [Configuration and storage](#configuration-and-storage): startup files, official Codex paths, and custom rendering
 - [Project information](#project-information): security, license, releases, and repository contents
 
@@ -250,15 +250,16 @@ Scopes include `Read Only`, `Workspace` (writes in allowed locations), and `Full
 
 </details>
 
-### Scrolling and image pasting
+### Scrolling, copying, and pasting
 
 - Scroll the upper pane's history with the wheel or trackpad. Return to the bottom or press `q` or `Esc` to resume input. The lower pane stays fixed.
-- For native text selection, hold `Shift` while dragging in terminals that support it.
-- Paste images with `Ctrl+v`. Depending on the environment, `Alt+v` or Codex's standard alternate `Ctrl+Alt+v` may work. Otherwise, attach the image file's path.
+- On WSL, dragging across text in the upper pane copies it to the Windows clipboard. `Ctrl+v` pastes clipboard text or images into Codex. Right-click paste works when the terminal forwards that mouse event to tmux.
+- For native text selection, hold `Shift` while dragging in terminals that support it. Outside WSL, use your terminal's copy and paste controls; copying from tmux requires terminal-side OSC 52 support.
+- Paste images with `Ctrl+v`. Depending on the environment, `Alt+v` or Codex's standard alternate `Ctrl+Alt+v` may also work. Otherwise, attach the image file's path.
 
 Image-paste bindings cannot be edited in `/keymap`. Check received keys through `/keymap` → `Debug` → `Inspect keypresses` (Enter to start, `Ctrl+c` to exit). [Key definitions](https://github.com/openai/codex/blob/rust-v0.153.4/codex-rs/tui/src/keymap.rs#L2164) / [Key inspector](https://github.com/openai/codex/blob/rust-v0.153.4/codex-rs/tui/src/keymap_setup/picker.rs#L312)
 
-On WSL, the `Ctrl+v` helper uses Windows PowerShell to convert clipboard images to PNG attachments. Failed retrieval falls back to Codex's standard handling.
+The WSL clipboard bridge uses Windows PowerShell to copy selected text to Windows. On `Ctrl+v`, it converts clipboard images to PNG attachments or pastes text if there is no image. Failed retrieval falls back to Codex's standard handling.
 
 ### Legacy terminals
 
