@@ -207,7 +207,7 @@ def doctor():
             print("Recovery backup directory: " + startup["backup_directory"])
     if os.environ.get("WSL_DISTRO_NAME"):
         available = shutil.which("powershell.exe") is not None
-        print("Optional: Windows image clipboard support " + ("available" if available else "not detected (not required for the status display)"))
+        print("Optional: Windows text and image clipboard support " + ("available" if available else "not detected (not required for the status display)"))
     print("Display: five-row tmux status pane / CCSL style and permission mode")
     print("Startup: dedicated CDSL PATH entry / official Codex files remain unchanged")
     print("Data: local JSONL for the active Codex session and Git metadata")
