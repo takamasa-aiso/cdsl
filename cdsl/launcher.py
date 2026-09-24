@@ -49,12 +49,9 @@ def configure_clipboard(run_dir: Path) -> bool:
     from .clipboard import _powershell_executable
     if _powershell_executable() is not None:
         copy_command = shlex.join([sys.executable, str(script), "copy"])
-        mouse_or_mode = "#{||:#{pane_in_mode},#{mouse_any_flag}}"
         commands.extend([
             ("set-option", "-s", "copy-command", copy_command),
             ("set-option", "-s", "set-clipboard", "off"),
-            ("bind-key", "-n", "MouseDown3Pane", "if-shell", "-F", "-t", "=",
-             mouse_or_mode, "send-keys -M", f"run-shell -b {shlex.quote(paste_command)}"),
         ])
     for arguments in commands:
         result = _tmux(socket, *arguments, capture_output=True, text=True, timeout=5)
