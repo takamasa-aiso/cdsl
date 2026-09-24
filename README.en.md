@@ -253,7 +253,7 @@ Scopes include `Read Only`, `Workspace` (writes in allowed locations), and `Full
 ### Scrolling, copying, and pasting
 
 - Scroll the upper pane's history with the wheel or trackpad. Return to the bottom or press `q` or `Esc` to resume input. The lower pane stays fixed.
-- On WSL, dragging across text in the upper pane copies it to the Windows clipboard. `Ctrl+v` pastes clipboard text or images into Codex. Right-click paste works when the terminal forwards that mouse event to tmux.
+- On WSL, dragging across text in the upper pane copies it to the Windows clipboard. `Ctrl+v` pastes clipboard text or images into Codex. Right-click follows the terminal's own settings; CDSL does not add another paste for that event.
 - For native text selection, hold `Shift` while dragging in terminals that support it. Outside WSL, use your terminal's copy and paste controls; copying from tmux requires terminal-side OSC 52 support.
 - Paste images with `Ctrl+v`. Depending on the environment, `Alt+v` or Codex's standard alternate `Ctrl+Alt+v` may also work. Otherwise, attach the image file's path.
 
