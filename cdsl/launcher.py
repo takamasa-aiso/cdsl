@@ -86,11 +86,23 @@ def configure_scrolling(run_dir: Path) -> None:
         handlers[event] = (
             f"select-pane -t =; if-shell -F -t = '{mouse_or_mode}' 'send-keys -M' "
             f"'copy-mode -H -t =; send-keys -X {selection}; "
-            "run-shell -d 0.3; send-keys -X copy-pipe-and-cancel'"
+            "run-shell -d 0.3; send-keys -X copy-pipe; send-keys -X clear-selection'"
         )
     # The default tmux mouse bindings can focus, freeze, resize, or remove the status pane.
     commands = [("bind-key", "-n", event, "if-shell", "-F", "-t", "=",
                  "#{==:#{pane_index},0}", handler) for event, handler in handlers.items()]
+    # Copy without leaving history browsing or jumping to the latest output.
+    for table in ("copy-mode", "copy-mode-vi"):
+        commands.append(("bind-key", "-T", table, "MouseDragEnd1Pane",
+                         "send-keys", "-X", "copy-pipe", "\\;",
+                         "send-keys", "-X", "clear-selection"))
+        for event, selection in (("DoubleClick1Pane", "select-word"),
+                                 ("TripleClick1Pane", "select-line")):
+            commands.append(("bind-key", "-T", table, event,
+                             "select-pane", "\\;", "send-keys", "-X", selection, "\\;",
+                             "run-shell", "-d", "0.3", "\\;",
+                             "send-keys", "-X", "copy-pipe", "\\;",
+                             "send-keys", "-X", "clear-selection"))
     commands.extend([
         ("unbind-key", "-n", "MouseDrag1Border"),
         ("set-option", "-t", session, "mouse", "on"),
