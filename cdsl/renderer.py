@@ -100,10 +100,13 @@ def _context(snapshot: dict, now: datetime) -> dict:
     cache_ratio = min(100, (_number(snapshot.get("cache_ratio")) or 0) * 100)
     directory = _text(snapshot.get("cwd"), ".")
     effort = snapshot.get("reasoning_effort")
+    speed = snapshot.get("speed_mode")
+    if speed is None and snapshot.get("fast_mode") is True:
+        speed = "fast"
     return {
         "model": _text(snapshot.get("model"), "Codex"),
         "reasoning_effort": _text(effort).strip() if isinstance(effort, str) else "",
-        "fast_mode": snapshot.get("fast_mode") is True,
+        "speed_mode": speed if speed in ("standard", "fast", "ultrafast") else None,
         "current_dir": _text(snapshot.get("current_dir")) or PurePath(directory).name or directory,
         "git_branch": _text(snapshot.get("git_branch")),
         "modified_files": int(_number(snapshot.get("modified_files")) or 0),
@@ -191,35 +194,40 @@ def _header(context: dict, width: int) -> str:
     model_name = ccsl_render.shorten_model_name(context["model"])
     effort = context["reasoning_effort"]
     effort_suffix = f"({effort})" if effort else ""
-    fast_suffix = (" fast" if _COMPATIBILITY.get() else "⚡") if context.get("fast_mode") is True else ""
+    speed = context.get("speed_mode")
+    speed_suffix = ""
+    if speed == "ultrafast":
+        speed_suffix = " ultrafast" if _COMPATIBILITY.get() else "⚡⚡"
+    elif speed == "fast":
+        speed_suffix = " fast" if _COMPATIBILITY.get() else "⚡"
     show_badge = context["context_size"] >= 1_000_000 and ccsl_render.should_show_1m_badge(context["model"], context["context_size"])
     badge_suffix = "(1M)" if show_badge else ""
-    model = model_name + effort_suffix + fast_suffix + badge_suffix
+    model = model_name + effort_suffix + speed_suffix + badge_suffix
     branch, directory = context["git_branch"], context["current_dir"]
 
     def model_label(size):
-        suffix, fast, badge = effort_suffix, fast_suffix, badge_suffix
+        suffix, speed_label, badge = effort_suffix, speed_suffix, badge_suffix
         short = {"low": "lo", "medium": "med", "high": "hi", "xhigh": "xh"}.get(effort)
-        while display_width(model_name + suffix + fast + badge) > size:
+        while display_width(model_name + suffix + speed_label + badge) > size:
             abbreviated = f"({short})" if suffix and short else ""
-            if abbreviated and display_width(abbreviated + fast + badge) < size:
+            if abbreviated and display_width(abbreviated + speed_label + badge) < size:
                 # Shorten effort only when doing so leaves more room for the model.
                 suffix = abbreviated
                 break
-            if display_width(suffix + fast + badge) < size:
+            if display_width(suffix + speed_label + badge) < size:
                 break
             # Omit whole modifiers when even a shortened model cannot fit beside them.
             if badge:
                 badge = ""
             elif suffix:
                 suffix = ""
-            elif fast:
-                fast = ""
+            elif speed_label:
+                speed_label = ""
             else:
                 break
-        name_size = max(1, size - display_width(suffix + fast + badge))
+        name_size = max(1, size - display_width(suffix + speed_label + badge))
         label = _clip(model_name, name_size)
-        for text, color in ((suffix, colors.BRIGHT_RED), (fast, colors.BRIGHT_MAGENTA),
+        for text, color in ((suffix, colors.BRIGHT_RED), (speed_label, colors.BRIGHT_MAGENTA),
                             (badge, colors.BRIGHT_MAGENTA)):
             if text:
                 label += color + text + colors.BRIGHT_YELLOW
@@ -423,6 +431,8 @@ def render(snapshot: dict, width: int = 80, color: bool = True, compatibility: b
     ISO 8601 or epoch seconds and display in JST. ``now`` fixes render time.
     Unavailable limits show ``[N/A]``; pending percentages show ``[---]``.
     Permission labels describe settings without changing them.
+    ``speed_mode`` distinguishes standard, fast, and ultrafast; legacy
+    ``fast_mode`` snapshots remain supported when no speed mode is supplied.
     Compatibility output uses ASCII graphs and basic ANSI colors.
     """
     if not isinstance(compatibility, bool):

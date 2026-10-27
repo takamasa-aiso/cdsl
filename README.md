@@ -4,7 +4,7 @@
 
 通常の`codex`起動に、CCSL風のステータス表示を追加する非公式ツールです。モデルとeffort、コンテキスト、利用枠、権限を端末の下部5行に表示します。
 
-![CDSLの表示例：gpt-6-astra(high)とピンク色のFastマーカー](assets/statusline-preview.png)
+![CDSLの表示例：gpt-6.1-sol(high)とピンク色のUltrafastマーカー2つ](assets/statusline-preview.png)
 
 数値は説明用のサンプルです。
 
@@ -198,7 +198,7 @@ python3 "$CDSL_DIR/scripts/cdsl.py" uninstall --codex --purge && hash -r
 | Weekly | アカウントの週次枠の使用率、リセットまでの時間 |
 | Permissions | 現在の会話に適用された権限の範囲と承認方針 |
 
-例：`[gpt-6-astra(high)]`。effortは現在の会話ログから取得し、括弧ごとピンク色で表示します。不明なら省略し、グローバル設定からは推測しません。CodexがFastを設定イベントへ記録した場合は、モデル名の右側にピンク色のFastマーカーが付きます。狭い端末でモデル名が収まらないときは、effortを`lo`・`med`・`hi`・`xh`などへ短縮します。時刻はJSTです。
+例：`[gpt-6-astra(high)]`。effortは現在の会話ログから取得し、括弧ごとピンク色で表示します。不明なら省略し、グローバル設定からは推測しません。Codexが速度を設定イベントへ記録した場合、モデル名の右側にピンク色の雷マーカーを表示します。Fastは1つ、Ultrafastは2つです（例：`[gpt-6.1-sol(high)⚡⚡]`）。通常速度・未取得・未対応の値では速度表示を省略します。狭い端末でモデル名が収まらないときは、effortを`lo`・`med`・`hi`・`xh`などへ短縮します。時刻はJSTです。
 
 ### 利用枠とグラフの読み方
 
@@ -263,7 +263,7 @@ WSLのコピー・貼り付け補助にはWindows PowerShellを使います。�
 
 ### 端末の互換表示
 
-狭い端末ではラベルやヒントを短縮します。`TERM=xterm`かつ`COLORTERM`未指定などではASCIIグラフと基本色を使い、Fastは`fast`と表記します。`CDSL_RENDER_MODE=ascii codex`で互換表示、`CDSL_RENDER_MODE=unicode codex`で通常表示を明示できます。
+狭い端末ではラベルやヒントを短縮します。`TERM=xterm`かつ`COLORTERM`未指定などではASCIIグラフと基本色を使い、Fastは`fast`、Ultrafastは`ultrafast`と表記します。`CDSL_RENDER_MODE=ascii codex`で互換表示、`CDSL_RENDER_MODE=unicode codex`で通常表示を明示できます。
 
 ## 設定と保存先
 

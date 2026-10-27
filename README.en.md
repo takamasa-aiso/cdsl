@@ -4,7 +4,7 @@
 
 CDSL is an unofficial tool that adds a CCSL-style status display when you run `codex`. It shows the model and effort, context usage, usage limits, and permissions in five rows at the bottom of your terminal.
 
-![CDSL status display with gpt-6-astra(high) and a pink Fast marker](assets/statusline-preview.png)
+![CDSL status display with gpt-6.1-sol(high) and two pink Ultrafast markers](assets/statusline-preview.png)
 
 The preview uses synthetic values.
 
@@ -198,7 +198,7 @@ python3 "$CDSL_DIR/scripts/cdsl.py" uninstall --codex --purge && hash -r
 | Weekly | Account usage of the weekly limit and time until reset |
 | Permissions | The current conversation's permission scope and approval policy |
 
-Example: `[gpt-6-astra(high)]`. Effort comes from the current conversation log and appears in pink, including its parentheses. It is omitted when unknown and never inferred from global settings. When Codex records Fast in an applied-settings event, a pink Fast marker appears next to the model. Narrow terminals abbreviate effort to `lo`, `med`, `hi`, or `xh` when the model name would otherwise be clipped. Times use JST.
+Example: `[gpt-6-astra(high)]`. Effort comes from the current conversation log and appears in pink, including its parentheses. It is omitted when unknown and never inferred from global settings. When Codex records speed in an applied-settings event, pink lightning markers appear beside the model: one for Fast and two for Ultrafast (for example, `[gpt-6.1-sol(high)⚡⚡]`). Standard, unknown, or unsupported tiers show no speed label. Narrow terminals abbreviate effort to `lo`, `med`, `hi`, or `xh` when the model name would otherwise be clipped. Times use JST.
 
 ### Understanding limits and graphs
 
@@ -263,7 +263,7 @@ The WSL clipboard bridge uses Windows PowerShell to copy selected text to Window
 
 ### Legacy terminals
 
-Narrow terminals shorten labels and hints. Terminals such as `TERM=xterm` without `COLORTERM` use ASCII graphs and basic colors, and spell out Fast as `fast`. Select compatibility output with `CDSL_RENDER_MODE=ascii codex`, or standard output with `CDSL_RENDER_MODE=unicode codex`.
+Narrow terminals shorten labels and hints. Terminals such as `TERM=xterm` without `COLORTERM` use ASCII graphs and basic colors, with `fast` for Fast and `ultrafast` for Ultrafast. Select compatibility output with `CDSL_RENDER_MODE=ascii codex`, or standard output with `CDSL_RENDER_MODE=unicode codex`.
 
 ## Configuration and storage
 
