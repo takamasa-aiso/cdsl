@@ -112,6 +112,7 @@ class SessionReader:
         self._state: dict[str, Any] = {
             "model": None,
             "reasoning_effort": None,
+            "speed_mode": None,
             "fast_mode": None,
             "cwd": None,
             "session_id": None,
@@ -206,6 +207,7 @@ class SessionReader:
         if isinstance(model, str) and model.strip():
             if model != self._state["model"]:
                 self._state["reasoning_effort"] = None
+                self._state["speed_mode"] = None
                 self._state["fast_mode"] = None
             self._state["model"] = model
         if effort_key in settings:
@@ -213,11 +215,17 @@ class SessionReader:
             self._state["reasoning_effort"] = (effort.strip() or None) if isinstance(effort, str) else None
 
     def _service_tier(self, tier: Any) -> None:
-        """Show Fast only when Codex reports a recognized effective tier."""
+        """Identify speed only from a recognized effective Codex service tier."""
         value = tier.strip().lower() if isinstance(tier, str) else ""
+        speed = {
+            "fast": "fast", "priority": "fast", "ultrafast": "ultrafast",
+            "default": "standard", "flex": "standard",
+        }.get(value)
+        self._state["speed_mode"] = speed
+        # Retain the legacy Fast field for existing custom renderers.
         self._state["fast_mode"] = (
-            True if value in {"fast", "priority"}
-            else False if value in {"default", "flex"}
+            True if speed == "fast"
+            else False if speed == "standard"
             else None
         )
 
